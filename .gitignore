@@ -27,6 +27,7 @@
 *.so
 *.so.*
 *.dylib
+*.pyd
 
 # Executables
 *.exe
@@ -35,6 +36,14 @@
 *.i*86
 *.x86_64
 *.hex
+*.png
+*.pgm
+*.ppm
+*.jpg
+*.bmp
+*.gif
+*.bin
+*.dat
 
 # Debug files
 *.dSYM/
