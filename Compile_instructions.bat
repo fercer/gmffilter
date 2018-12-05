@@ -16,7 +16,7 @@ SET required_libs=D:\Apps\fftw\lib\fftw3.lib
 SET macros_definitions=/DBUILDING_GMF_DLL
 SET version=release
 SET install=false
-SET installation_path=
+SET installation_path= 
 
 if "%1" == "python" (
     SET required_include_paths=%required_include_paths% /ID:\Apps\Anaconda3\include /ID:\Apps\Anaconda3\Lib\site-packages\numpy\core\include

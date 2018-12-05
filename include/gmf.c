@@ -43,15 +43,11 @@ None
 *
 ************************************************************************************************************/
 void filterGMF_impl(double* img_src, double* img_dst, double* ang_dst, const int height, const int width, const int par_T, const int par_L, const double par_sigma, const int par_K)
-{
-	DEBMSG("Starting the filtering process...\n");
-	
+{	
 	/* Compute the nearest 2 powered dimension where the input image fits */
 	const unsigned int max_dim = (height > width) ? height : width;
 	const double remainder_2p_dim = log2(max_dim) - floor(log2(max_dim));
 	const unsigned int nearest_2p_dim = (unsigned int)pow(2, floor(log2(max_dim)) + (remainder_2p_dim > 1e-12 ? 1 : 0));
-
-	DEBNUMMSG("Nearest 2 power dimension %i\n", nearest_2p_dim);
 	
 	/* Offset for the zero padded image */
 	const unsigned int GMF_kernel_height = par_L + 6;
@@ -86,9 +82,9 @@ void filterGMF_impl(double* img_src, double* img_dst, double* ang_dst, const int
 	ft_forward_setup(nearest_2p_dim, nearest_2p_dim, zp_img, fft_zp_img);
 	ft_forward(nearest_2p_dim, nearest_2p_dim, zp_img, fft_zp_img);
 	ft_release_forward;
+
 	free(zp_img);	
 	
-	DEBMSG("Image transformed successfully...\n");
 
 	fft_GMF_kernels = allocate_ft_complex_pointers(par_K);
 	for (unsigned int k = 0; k < par_K; k++)
@@ -108,7 +104,7 @@ void filterGMF_impl(double* img_src, double* img_dst, double* ang_dst, const int
 	/* ----------------------------------------------------------- Apply the GMF filter --------------------------------------------------------- */
 	double minima_filter_response = MY_INF;
 	double maxima_filter_response = -MY_INF;
-
+	
 	/* First Kernel: */
 	for (unsigned int i = 0; i < nearest_2p_dim*(nearest_2p_dim / 2 + 1); i++)
 	{
@@ -127,7 +123,7 @@ void filterGMF_impl(double* img_src, double* img_dst, double* ang_dst, const int
 	ft_backward_setup(nearest_2p_dim, nearest_2p_dim, fft_resp_to_GMF_kernel, resp_to_GMF_kernels_data);
 	ft_backward(nearest_2p_dim, nearest_2p_dim, fft_resp_to_GMF_kernel, resp_to_GMF_kernels_data);
 	ft_release_backward;
-	
+		
 	for (unsigned int k = 1; k < par_K; k++)
 	{
 		for (unsigned int i = 0; i < nearest_2p_dim*(nearest_2p_dim / 2 + 1); i++)
@@ -138,7 +134,7 @@ void filterGMF_impl(double* img_src, double* img_dst, double* ang_dst, const int
 			const double imag_result = ft_real(*(fft_GMF_kernels + k) + i) * ft_imag(fft_zp_img + i) + ft_real(fft_zp_img + i) * ft_imag(*(fft_GMF_kernels + k) + i);
 
 			ft_real_assign(fft_resp_to_GMF_kernel + i) = real_result;
-			ft_real_assign(fft_resp_to_GMF_kernel + i) = imag_result;
+			ft_imag_assign(fft_resp_to_GMF_kernel + i) = imag_result;
 
 			/* Check if the response to the previous kernel is higher to the current response: */
 			if (*(max_resp + i) < *(resp_to_GMF_kernels_data + i))
@@ -157,6 +153,7 @@ void filterGMF_impl(double* img_src, double* img_dst, double* ang_dst, const int
 		ft_backward_setup(nearest_2p_dim, nearest_2p_dim, fft_resp_to_GMF_kernel, resp_to_GMF_kernels_data);
 		ft_backward(nearest_2p_dim, nearest_2p_dim, fft_resp_to_GMF_kernel, resp_to_GMF_kernels_data);
 		ft_release_backward;
+		
 	}
 
 	for (unsigned int i = 0; i < nearest_2p_dim*nearest_2p_dim; i++)
@@ -167,7 +164,10 @@ void filterGMF_impl(double* img_src, double* img_dst, double* ang_dst, const int
 			*(max_resp + i) = *(resp_to_GMF_kernels_data + i);
 			*(max_resp_angle + i) = MY_PI * (double)(par_K - 1) / (double)par_K;
 		}
+		
+		*(max_resp + i) = *(max_resp + i) / (double)(nearest_2p_dim*nearest_2p_dim);
 	}
+
 
 	double* GMF_resp_it = img_dst;
 	double* GMF_resp_angles_it = ang_dst;
@@ -247,7 +247,7 @@ void generateGMFTemplate_impl(ft_complex ** fft_GMF_kernels, const int par_T, co
 		{
 			memcpy(zp_GMF_rotated_kernel + i * nearest_2p_dim, GMF_rotated_kernel + i*GMF_kernel_width, GMF_kernel_width * sizeof(double));
 		}
-				
+						
 		ft_forward_setup(nearest_2p_dim, nearest_2p_dim, zp_GMF_rotated_kernel, *(fft_GMF_kernels + k));
 		ft_forward(nearest_2p_dim, nearest_2p_dim, zp_GMF_rotated_kernel, *(fft_GMF_kernels + k));
 		ft_release_forward;
@@ -405,7 +405,7 @@ void filterGMFUntrimmed_impl(double* img_src, double* img_dst, double* ang_dst, 
 			*(max_resp_angle + i) = MY_PI * (double)(par_K - 1) / (double)par_K;
 		}
 
-		*(max_resp + i) = nearest_2p_dim * *(max_resp + i);
+		*(max_resp + i) = *(max_resp + i) / (double)(nearest_2p_dim*nearest_2p_dim);
 	}
 
 	double* GMF_resp_it = img_dst;
@@ -491,6 +491,7 @@ void generateGMFTemplateUntrimmed_impl(ft_complex ** fft_GMF_kernels, const int 
 
 		ft_forward_setup(nearest_2p_dim, nearest_2p_dim, zp_GMF_rotated_kernel, *(fft_GMF_kernels + k));
 		ft_forward(nearest_2p_dim, nearest_2p_dim, zp_GMF_rotated_kernel, *(fft_GMF_kernels + k));
+		ft_release_forward;
 	}
 
 	free(zp_GMF_rotated_kernel);
@@ -637,7 +638,6 @@ void rotateBicubic_impl(double* src, double* dst, const double theta, const int 
 
 	free(src_temp);
 }
-
 
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ C++ implementations: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 

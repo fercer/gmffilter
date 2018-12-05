@@ -4,6 +4,8 @@
 
 #include <gmf.h>
 
+void savePGM(const char * filename, const int height, const int width, const double * img_src);
+
 int main(int argc, char * argv[])
 {    
     if (argc < 2)
@@ -103,13 +105,8 @@ int main(int argc, char * argv[])
     fclose(fp_img);
 
     printf("Dumping the image to an ascii file\n");
-    fp_img = fopen("resp.pgm", "w");
-    fprintf(fp_img, "P2\n# Created by FerCer\n%i %i\n255\n", height, width);
-    for (unsigned int xy = 0; xy < height*width; xy++)
-    {
-        fprintf(fp_img, "%i\n", (int)*(ang_resp+xy));
-    }
-    fclose(fp_img);
+
+    savePGM("resp.pgm", height, width, resp);
 
     free(resp);   
     free(ang_resp);   
@@ -117,4 +114,39 @@ int main(int argc, char * argv[])
     printf("Example run successfully ...\n");
    
     return 0;
+}
+
+
+
+
+void savePGM(const char * filename, const int height, const int width, const double * img_src)
+{
+	double max_value = -MY_INF;
+	double min_value = MY_INF;
+	
+	for (unsigned int xy = 0; xy < height*width; xy++)
+	{
+		if (max_value < *(img_src + xy))
+		{
+			max_value = *(img_src + xy);
+		}
+		
+		if (min_value > *(img_src + xy))
+		{
+			min_value = *(img_src + xy);
+		}
+	}
+	
+	FILE * fp = fopen(filename, "w");
+	fprintf(fp, "P2\n# Created by FerCer\n%i %i\n255", height, width);
+
+	for (unsigned int x = 0; x < width; x++)
+	{
+		for (unsigned int y = 0; y < height; y++)
+		{
+			fprintf(fp, "\n%i", (int)(255.0 * (*(img_src+ x + y*width) - min_value) / (max_value - min_value)));
+		}
+	}
+	
+	fclose(fp);
 }

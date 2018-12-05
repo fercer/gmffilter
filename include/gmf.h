@@ -57,8 +57,8 @@ None
 #else
 #include <fftw3.h>
 #define ft_complex fftw_complex
-#define ft_real(POINTER) (*(*(POINTER)) * size_factor)
-#define ft_imag(POINTER) (*(*(POINTER) + 1) * size_factor)
+#define ft_real(POINTER) *(*(POINTER))
+#define ft_imag(POINTER) *(*(POINTER) + 1)
 #define ft_real_assign(POINTER) *(*(POINTER))
 #define ft_imag_assign(POINTER) *(*(POINTER) + 1)
 #define allocate_ft_complex(ARRAY_SIZE) (fftw_complex*)fftw_malloc(ARRAY_SIZE*sizeof(fftw_complex))
