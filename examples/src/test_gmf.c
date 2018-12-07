@@ -90,7 +90,7 @@ int main(int argc, char * argv[])
 
     printf("Image loaded (first, middle and last values are: %.16f, %.16f, %.16f)...\n", *img, *(img+(150-1)*300+150-1), *(img + height*width-1));
     
-    filterGMF_impl(img, resp, ang_resp, height, width, par_T, par_L, par_sigma, par_K);
+    filterGMFWithAngles_impl(img, resp, ang_resp, height, width, par_T, par_L, par_sigma, par_K);
 
     free(img);
     free(mask);
@@ -107,6 +107,7 @@ int main(int argc, char * argv[])
     printf("Dumping the image to an ascii file\n");
 
     savePGM("resp.pgm", height, width, resp);
+    savePGM("ang_resp.pgm", height, width, ang_resp);
 
     free(resp);   
     free(ang_resp);   
@@ -138,13 +139,13 @@ void savePGM(const char * filename, const int height, const int width, const dou
 	}
 	
 	FILE * fp = fopen(filename, "w");
-	fprintf(fp, "P2\n# Created by FerCer\n%i %i\n255", height, width);
+	fprintf(fp, "P2\n# Created by FerCer\n%i %i\n255\n", height, width);
 
 	for (unsigned int x = 0; x < width; x++)
 	{
 		for (unsigned int y = 0; y < height; y++)
 		{
-			fprintf(fp, "\n%i", (int)(255.0 * (*(img_src+ x + y*width) - min_value) / (max_value - min_value)));
+			fprintf(fp, "%i\n", (int)(255.0 * (*(img_src + x + y*width) - min_value) / (max_value - min_value)));
 		}
 	}
 	
