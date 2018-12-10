@@ -22,16 +22,32 @@ None
     #include <numpy/ndarraytypes.h>
     #include <numpy/ufuncobject.h>
     #include <numpy/npy_3kcompat.h>
-    #define GMF_DLL 
+    #define GMF_DLL_PUBLIC
+    #define GMF_DLL_LOCAL
 #else
     #if defined(_WIN32) || defined(_WIN64)
         #ifdef BUILDING_GMF_DLL
-            #define GMF_DLL __declspec(dllexport)
+            #ifdef __GNUC__
+                #define GMF_DLL_PUBLIC __attribute__ ((dllexport))
+            #else
+                #define GMF_DLL_PUBLIC __declspec(dllexport)
+            #endif
         #else
-            #define GMF_DLL __declspec(dllimport)
+            #ifdef __GNUC__
+                #define GMF_DLL_PUBLIC __attribute__ ((dllimport))
+            #else
+                #define GMF_DLL_PUBLIC __declspec(dllimport)
+            #endif
         #endif
+        #define GMF_DLL_LOCAL
     #else
-        #define GMF_DLL 
+        #if __GNUC__ >= 4
+            #define GMF_DLL_PUBLIC __attribute__ ((visibility ("default")))
+            #define GMF_DLL_LOCAL  __attribute__ ((visibility ("hidden")))
+        #else
+            #define GMF_DLL_PUBLIC
+            #define GMF_DLL_LOCAL
+        #endif
     #endif
 #endif
 
@@ -95,33 +111,33 @@ None
 
 
 /* C implementations: */
-inline double bicubicInterpolation_impl(double* src, const double x, const double y, const unsigned int src_height, const unsigned int src_width);
+static inline double bicubicInterpolation_impl(double* src, const double x, const double y, const unsigned int src_height, const unsigned int src_width);
 
-void rotateBicubic_impl(double* src, double* dst, const double theta, const int src_height, const int src_width);
+void GMF_DLL_LOCAL rotateBicubic_impl(double* src, double* dst, const double theta, const int src_height, const int src_width);
 
-void generateGMFTemplate_impl(ft_complex ** fft_GMF_kernels, const int par_T, const int par_L, const double par_sigma, const int par_K, const int nearest_2p_dim, unsigned int * GMF_kernel_height, unsigned int * GMF_kernel_width);
+void GMF_DLL_LOCAL generateGMFTemplate_impl(ft_complex ** fft_GMF_kernels, const int par_T, const int par_L, const double par_sigma, const int par_K, const int nearest_2p_dim, unsigned int * GMF_kernel_height, unsigned int * GMF_kernel_width);
 
-void generateGMFTemplateUntrimmed_impl(ft_complex ** fft_GMF_kernels, const int par_T, const int par_L, const double par_sigma, const int par_K, const int nearest_2p_dim, unsigned int * GMF_kernel_height, unsigned int * GMF_kernel_width);
+void GMF_DLL_LOCAL generateGMFTemplateUntrimmed_impl(ft_complex ** fft_GMF_kernels, const int par_T, const int par_L, const double par_sigma, const int par_K, const int nearest_2p_dim, unsigned int * GMF_kernel_height, unsigned int * GMF_kernel_width);
 
-void applyGMFWithAngles(ft_complex* fft_img_src, double* img_dst, double* ang_dst, const int nearest_2p_dim, const int height, const int width, const int GMF_kernel_height, const int GMF_kernel_width, const int par_K, ft_complex ** fft_GMF_kernels);
+void GMF_DLL_LOCAL applyGMFWithAngles(ft_complex* fft_img_src, double* img_dst, double* ang_dst, const int nearest_2p_dim, const int height, const int width, const int GMF_kernel_height, const int GMF_kernel_width, const int par_K, ft_complex ** fft_GMF_kernels);
 
-void applyGMF(ft_complex* fft_img_src, double* img_dst, const int nearest_2p_dim, const int height, const int width, const int GMF_kernel_height, const int GMF_kernel_width, const int par_K, ft_complex ** fft_GMF_kernels);
+void GMF_DLL_LOCAL applyGMF(ft_complex* fft_img_src, double* img_dst, const int nearest_2p_dim, const int height, const int width, const int GMF_kernel_height, const int GMF_kernel_width, const int par_K, ft_complex ** fft_GMF_kernels);
 
-void GMF_DLL singleScaleGMFilter(double * raw_input, char * mask, double * output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels);
+void GMF_DLL_PUBLIC singleScaleGMFilter(double * raw_input, char * mask, double * output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels);
 
-void GMF_DLL singleScaleGMFilterWithAngles(double * raw_input, char * mask, double * output, double * angles_output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels);
+void GMF_DLL_PUBLIC singleScaleGMFilterWithAngles(double * raw_input, char * mask, double * output, double * angles_output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels);
 
-void GMF_DLL singleScaleGMFilter_multipleinputs(double * raw_input, const unsigned int n_inputs, char * mask, double * output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels);
+void GMF_DLL_PUBLIC singleScaleGMFilter_multipleinputs(double * raw_input, const unsigned int n_inputs, char * mask, double * output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels);
 
-void GMF_DLL singleScaleGMFilterWithAngles_multipleinputs(double * raw_input, const unsigned int n_inputs, char * mask, double * output, double * angles_output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels);
+void GMF_DLL_PUBLIC singleScaleGMFilterWithAngles_multipleinputs(double * raw_input, const unsigned int n_inputs, char * mask, double * output, double * angles_output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels);
 
-void GMF_DLL multiscaleGMFilter(double * raw_input, char * mask, double * output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels);
+void GMF_DLL_PUBLIC multiscaleGMFilter(double * raw_input, char * mask, double * output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels);
 
-void GMF_DLL multiscaleGMFilterWithAngles(double * raw_input, char * mask, double * output, double * angles_output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels);
+void GMF_DLL_PUBLIC multiscaleGMFilterWithAngles(double * raw_input, char * mask, double * output, double * angles_output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels);
 
-void GMF_DLL multiscaleGMFilter_multipleinputs(double * raw_input, const unsigned int n_inputs, char * mask, double * output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels);
+void GMF_DLL_PUBLIC multiscaleGMFilter_multipleinputs(double * raw_input, const unsigned int n_inputs, char * mask, double * output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels);
 
-void GMF_DLL multiscaleGMFilterWithAngles_multipleinputs(double * raw_input, unsigned int n_inputs, char * mask, double * output, double * angles_output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels);
+void GMF_DLL_PUBLIC multiscaleGMFilterWithAngles_multipleinputs(double * raw_input, unsigned int n_inputs, char * mask, double * output, double * angles_output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels);
 
 #ifdef BUILDING_PYHTON_MODULE
 static PyObject* gmfFilter(PyObject *self, PyObject *args);

@@ -18,7 +18,7 @@ None
 #include "gmf.h"
 
 
-inline double bicubicInterpolation_impl(double* src, const double x, const double y, const unsigned int src_height, const unsigned int src_width)
+double bicubicInterpolation_impl(double* src, const double x, const double y, const unsigned int src_height, const unsigned int src_width)
 {
 	const int x_int = (int)floor(x);
 	const int y_int = (int)floor(y);
@@ -435,9 +435,9 @@ void singleScaleGMFilter(double * raw_input, char * mask, double * output, const
 	double * zp_img = (double*)calloc(nearest_2p_dim*nearest_2p_dim, sizeof(double));
 	for (unsigned int y = 0; y < height; y++)
 	{
-		memcpy(zp_img + y*nearest_2p_dim, raw_input, width * sizeof(double));
+        memcpy(zp_img + y*nearest_2p_dim, raw_input + y*width, width * sizeof(double));
 	}
-	
+		
 	ft_variables(nearest_2p_dim, nearest_2p_dim);
 
 	ft_complex* fft_img_src = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2 + 1));
@@ -472,7 +472,7 @@ void singleScaleGMFilter(double * raw_input, char * mask, double * output, const
 	// Apply the mask, the mask(x, y) must be {0, 1}:
 	char * m_ptr = mask;
 	double *o_ptr = output;
-	
+        
 	for (unsigned int xy = 0; xy < height*width; xy++, m_ptr++, o_ptr++)
 	{
 		*o_ptr = *o_ptr * (double)*m_ptr;
@@ -500,9 +500,9 @@ void singleScaleGMFilterWithAngles(double * raw_input, char * mask, double * out
 	double * zp_img = (double*)calloc(nearest_2p_dim*nearest_2p_dim, sizeof(double));
 	for (unsigned int y = 0; y < height; y++)
 	{
-		memcpy(zp_img + y*nearest_2p_dim, raw_input, width * sizeof(double));
-	}
-	
+        memcpy(zp_img + y*nearest_2p_dim, raw_input + y*width, width * sizeof(double));
+    }
+    
 	ft_variables(nearest_2p_dim, nearest_2p_dim);
 
 	ft_complex* fft_img_src = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2 + 1));
@@ -538,7 +538,7 @@ void singleScaleGMFilterWithAngles(double * raw_input, char * mask, double * out
 	char * m_ptr = mask;
 	double *o_ptr = output;
 	double *a_ptr = angles_output;
-	
+    
 	for (unsigned int xy = 0; xy < height*width; xy++, m_ptr++, o_ptr++, a_ptr++)
 	{
 		*o_ptr = *o_ptr * (double)*m_ptr;
@@ -590,7 +590,7 @@ void singleScaleGMFilter_multipleinputs(double * raw_input, const unsigned int n
 	{
 		for (unsigned int y = 0; y < height; y++)
 		{
-			memcpy(zp_img + y*nearest_2p_dim, raw_input + i*width*height, width * sizeof(double));
+            memcpy(zp_img + y*nearest_2p_dim, raw_input + i*width*height + y*width, width * sizeof(double));
 		}
 			
 		/* Perform the Fourier Transform: */
@@ -657,7 +657,7 @@ void singleScaleGMFilterWithAngles_multipleinputs(double * raw_input, const unsi
 	{
 		for (unsigned int y = 0; y < height; y++)
 		{
-			memcpy(zp_img + y*nearest_2p_dim, raw_input + i*width*height, width * sizeof(double));
+            memcpy(zp_img + y*nearest_2p_dim, raw_input + i*width*height + y*width, width * sizeof(double));
 		}
 			
 		/* Perform the Fourier Transform: */
@@ -703,7 +703,7 @@ void multiscaleGMFilter(double * raw_input, char * mask, double * output, const 
 	double * zp_img = (double*)calloc(nearest_2p_dim*nearest_2p_dim, sizeof(double));
 	for (unsigned int y = 0; y < height; y++)
 	{
-		memcpy(zp_img + y*nearest_2p_dim, raw_input, width * sizeof(double));
+        memcpy(zp_img + y*nearest_2p_dim, raw_input + y*width, width * sizeof(double));
 	}
 	
 	ft_variables(nearest_2p_dim, nearest_2p_dim);
@@ -771,7 +771,7 @@ void multiscaleGMFilterWithAngles(double * raw_input, char * mask, double * outp
 	double * zp_img = (double*)calloc(nearest_2p_dim*nearest_2p_dim, sizeof(double));
 	for (unsigned int y = 0; y < height; y++)
 	{
-		memcpy(zp_img + y*nearest_2p_dim, raw_input, width * sizeof(double));
+        memcpy(zp_img + y*nearest_2p_dim, raw_input + y*width, width * sizeof(double));
 	}
 	
 	ft_variables(nearest_2p_dim, nearest_2p_dim);
@@ -869,7 +869,7 @@ void multiscaleGMFilter_multipleinputs(double * raw_input, const unsigned int n_
 	{
 		for (unsigned int y = 0; y < height; y++)
 		{
-			memcpy(zp_img + y*nearest_2p_dim, raw_input + i*width*height, width * sizeof(double));
+            memcpy(zp_img + y*nearest_2p_dim, raw_input + i*width*height + y*width, width * sizeof(double));
 		}
 			
 		/* Perform the Fourier Transform: */
@@ -947,7 +947,7 @@ void multiscaleGMFilterWithAngles_multipleinputs(double * raw_input, unsigned in
 	{
 		for (unsigned int y = 0; y < height; y++)
 		{
-			memcpy(zp_img + y*nearest_2p_dim, raw_input + i*width*height, width * sizeof(double));
+            memcpy(zp_img + y*nearest_2p_dim, raw_input + i*width*height + y*width, width * sizeof(double));
 		}
 			
 		/* Perform the Fourier Transform: */
@@ -987,3 +987,195 @@ void multiscaleGMFilterWithAngles_multipleinputs(double * raw_input, unsigned in
 	deallocate_ft_complex(fft_img_src);	
 	ft_close;
 }
+
+
+
+#ifdef BUILDING_PYHTON_MODULE
+static PyObject* gmfFilter(PyObject *self, PyObject *args)
+{
+    PyArrayObject *raw_input;
+    char *raw_input_data = NULL;
+    npy_intp raw_input_stride, n_imgs = 1;
+    npy_intp height, width;
+    
+    PyArrayObject *multiscale_par_sigma = NULL;
+    char * par_sigma_data = NULL;
+    npy_intp par_sigma_stride, par_sigma_scales = 1;
+    
+    PyArrayObject *mask = NULL;
+    char * mask_data = NULL;
+    npy_intp mask_stride;
+    
+    unsigned int par_T:
+    unsigned int par_L;
+    unsigned int par_K;
+    
+    if (!PyArg_ParseTuple(args, "O!IIO!IO!", &PyArray_Type, &raw_input, &par_T, &par_L, &PyArray_Type, &multiscale_par_sigma, &par_K, &PyArray_Type, &mask))
+    {
+        return NULL;
+    }
+    
+    par_sigma_data = ((PyArrayObject*)multiscale_par_sigma)->data;
+    par_sigma_scales = ((PyArrayObject*)multiscale_par_sigma)->dimensions[0];
+    par_sigma_stride = ((PyArrayObject*)multiscale_par_sigma)->strides[((PyArrayObject*)multiscale_par_sigma)->nd-1];
+    
+    
+    if (((PyArrayObject*)raw_input)->nd > 2)
+    {
+        n_imgs = ((PyArrayObject*)raw_input)->dimensions[0];
+        height = ((PyArrayObject*)raw_input)->dimensions[1];
+        width = ((PyArrayObject*)raw_input)->dimensions[2];
+    }
+    else
+    {
+        n_imgs = 1;
+        height = ((PyArrayObject*)raw_input)->dimensions[0];
+        width = ((PyArrayObject*)raw_input)->dimensions[1];
+    }
+    
+    raw_input_data  = ((PyArrayObject*)raw_input)->data;
+    raw_input_stride = ((PyArrayObject*)raw_input)->strides[((PyArrayObject*)raw_input)->nd - 1];
+    
+    mask_data = ((PyArrayObject*)mask)->data;
+    mask_stride = ((PyArrayObject*)mask)->strides[((PyArrayObject*)mask)->nd - 1];
+    
+    PyObject * gmf_response = NULL;
+    if (n_imgs > 1 && par_T_scales > 1) 
+    {
+        npy_intp gmf_response_shape[] = { n_imgs, par_T_scales, height, width };      
+        gmf_response = PyArray_SimpleNew(4, &gmf_response_shape[0], NPY_DOUBLE);
+    }
+    else if (n_imgs > 1 && par_T_scales == 1)
+    {
+        npy_intp gmf_response_shape[] = { n_imgs, height, width };        
+        gmf_response = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
+    }
+    else if (n_imgs == 1 && par_T_scales > 1)
+    {
+        npy_intp gmf_response_shape[] = { par_T_scales, height, width };      
+        gmf_response = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
+    }
+    else
+    {
+        npy_intp gmf_response_shape[] = { height, width };        
+        gmf_response = PyArray_SimpleNew(2, &gmf_response_shape[0], NPY_DOUBLE);
+    }
+    
+    char * gmf_response_data = ((PyArrayObject*)gmf_response)->data;
+    npy_intp gmf_response_stride = ((PyArrayObject*)gmf_response)->strides[((PyArrayObject*)gmf_response)->nd-1];
+    
+    if (n_imgs > 1)
+    {
+        DEBMSG("Multiscale Gaussian matched filtering over multiple images\n");
+        multiscaleGMFilter_multipleinputs((double)raw_input_data, n_imgs, (double)mask_data, (double)gmf_response_data, height, width, par_T, par_L, (double)par_sigma_data, par_sigma_scales, par_K, 0);
+    }
+    else
+    {
+        DEBMSG("Multiscale Gaussian matched filtering over a single image\n");
+        multiscaleGMFilter((double)raw_input_data, (double)mask_data, (double)gmf_response_data, height, width, par_T, par_L, (double)par_sigma_data, par_sigma_scales, par_K, 0);
+    }
+    
+    return gmf_response;
+}
+#endif
+
+
+
+#ifdef BUILDING_PYHTON_MODULE
+static PyObject* gmfFilterWithAngles(PyObject *self, PyObject *args)
+{
+    PyArrayObject *raw_input;
+    char *raw_input_data = NULL;
+    npy_intp raw_input_stride, n_imgs = 1;
+    npy_intp height, width;
+    
+    PyArrayObject *multiscale_par_sigma = NULL;
+    char * par_sigma_data = NULL;
+    npy_intp par_sigma_stride, par_sigma_scales = 1;
+    
+    PyArrayObject *mask = NULL;
+    char * mask_data = NULL;
+    npy_intp mask_stride;
+    
+    unsigned int par_T:
+    unsigned int par_L;
+    unsigned int par_K;
+    
+    if (!PyArg_ParseTuple(args, "O!IIO!IO!", &PyArray_Type, &raw_input, &par_T, &par_L, &PyArray_Type, &multiscale_par_sigma, &par_K, &PyArray_Type, &mask))
+    {
+        return NULL;
+    }
+    
+    par_sigma_data = ((PyArrayObject*)multiscale_par_sigma)->data;
+    par_sigma_scales = ((PyArrayObject*)multiscale_par_sigma)->dimensions[0];
+    par_sigma_stride = ((PyArrayObject*)multiscale_par_sigma)->strides[((PyArrayObject*)multiscale_par_sigma)->nd-1];
+    
+    
+    if (((PyArrayObject*)raw_input)->nd > 2)
+    {
+        n_imgs = ((PyArrayObject*)raw_input)->dimensions[0];
+        height = ((PyArrayObject*)raw_input)->dimensions[1];
+        width = ((PyArrayObject*)raw_input)->dimensions[2];
+    }
+    else
+    {
+        n_imgs = 1;
+        height = ((PyArrayObject*)raw_input)->dimensions[0];
+        width = ((PyArrayObject*)raw_input)->dimensions[1];
+    }
+    
+    raw_input_data  = ((PyArrayObject*)raw_input)->data;
+    raw_input_stride = ((PyArrayObject*)raw_input)->strides[((PyArrayObject*)raw_input)->nd - 1];
+    
+    mask_data = ((PyArrayObject*)mask)->data;
+    mask_stride = ((PyArrayObject*)mask)->strides[((PyArrayObject*)mask)->nd - 1];
+    
+    PyObject * gmf_response = NULL;
+    PyObject * gmf_response_angles = NULL;
+    if (n_imgs > 1 && par_T_scales > 1) 
+    {
+        npy_intp gmf_response_shape[] = { n_imgs, par_T_scales, height, width };
+        gmf_response = PyArray_SimpleNew(4, &gmf_response_shape[0], NPY_DOUBLE);
+        gmf_response_angles = PyArray_SimpleNew(4, &gmf_response_shape[0], NPY_DOUBLE);
+    }
+    else if (n_imgs > 1 && par_T_scales == 1)
+    {
+        npy_intp gmf_response_shape[] = { n_imgs, height, width };
+        gmf_response = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
+        gmf_response_angles = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
+    }
+    else if (n_imgs == 1 && par_T_scales > 1)
+    {
+        npy_intp gmf_response_shape[] = { par_T_scales, height, width };
+        gmf_response = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
+        gmf_response_angles = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
+    }
+    else
+    {
+        npy_intp gmf_response_shape[] = { height, width };
+        gmf_response = PyArray_SimpleNew(2, &gmf_response_shape[0], NPY_DOUBLE);
+        gmf_response_angles = PyArray_SimpleNew(2, &gmf_response_shape[0], NPY_DOUBLE);
+    }
+    
+    char * gmf_response_data = ((PyArrayObject*)gmf_response)->data;
+    char * gmf_response_angles_data = ((PyArrayObject*)gmf_response_angles)->data;
+    npy_intp gmf_response_stride = ((PyArrayObject*)gmf_response)->strides[((PyArrayObject*)gmf_response)->nd-1];
+    npy_intp gmf_response_angles_stride = ((PyArrayObject*)gmf_response_angles)->strides[((PyArrayObject*)gmf_response_angles)->nd-1];
+    
+    if (n_imgs > 1)
+    {
+        DEBMSG("Multiscale Gaussian matched filtering over multiple images\n");
+        multiscaleGMFilterWithAngles_multipleinputs((double)raw_input_data, n_imgs, (double)mask_data, (double)gmf_response_data, (double)gmf_response_angles_data, height, width, par_T, par_L, (double)par_sigma_data, par_sigma_scales, par_K, 0);
+    }
+    else
+    {
+        DEBMSG("Multiscale Gaussian matched filtering over a single image\n");
+        multiscaleGMFilterWithAngles((double)raw_input_data, (double)mask_data, (double)gmf_response_data,(double)gmf_response_angles_data, height, width, par_T, par_L, (double)par_sigma_data, par_sigma_scales, par_K, 0);
+    }
+    
+    PyObject *gmf_response_tuple = PyTuple_New(2);
+    PyTuple_SetItem(gmf_response_tuple, 0, gmf_response);
+    PyTuple_SetItem(gmf_response_tuple, 1, gmf_response_angles);
+    return gmf_response_tuple;
+}
+#endif

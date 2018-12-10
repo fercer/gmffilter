@@ -88,9 +88,11 @@ int main(int argc, char * argv[])
     
     fclose(fp_img);
 
+    savePGM("loaded_image.pgm", height, width, img);
+    
     printf("Image loaded (first, middle and last values are: %.16f, %.16f, %.16f)...\n", *img, *(img+(150-1)*300+150-1), *(img + height*width-1));
     
-    filterGMFWithAngles_impl(img, resp, ang_resp, height, width, par_T, par_L, par_sigma, par_K);
+    singleScaleGMFilterWithAngles(img, mask, resp, ang_resp, height, width, par_T, par_L, par_sigma, par_K, 0);
 
     free(img);
     free(mask);
@@ -120,34 +122,36 @@ int main(int argc, char * argv[])
 
 
 
+
+
 void savePGM(const char * filename, const int height, const int width, const double * img_src)
 {
-	double max_value = -MY_INF;
-	double min_value = MY_INF;
-	
-	for (unsigned int xy = 0; xy < height*width; xy++)
-	{
-		if (max_value < *(img_src + xy))
-		{
-			max_value = *(img_src + xy);
-		}
-		
-		if (min_value > *(img_src + xy))
-		{
-			min_value = *(img_src + xy);
-		}
-	}
-	
-	FILE * fp = fopen(filename, "w");
-	fprintf(fp, "P2\n# Created by FerCer\n%i %i\n255\n", height, width);
-
-	for (unsigned int x = 0; x < width; x++)
-	{
-		for (unsigned int y = 0; y < height; y++)
-		{
-			fprintf(fp, "%i\n", (int)(255.0 * (*(img_src + x + y*width) - min_value) / (max_value - min_value)));
-		}
-	}
-	
-	fclose(fp);
+    double max_value = -MY_INF;
+    double min_value = MY_INF;
+    
+    for (unsigned int xy = 0; xy < height*width; xy++)
+    {
+        if (max_value < *(img_src + xy))
+        {
+            max_value = *(img_src + xy);
+        }
+        
+        if (min_value > *(img_src + xy))
+        {
+            min_value = *(img_src + xy);
+        }
+    }
+    
+    FILE * fp = fopen(filename, "w");
+    fprintf(fp, "P2\n# Created by FerCer\n%i %i\n255\n", height, width);
+    
+    for (unsigned int x = 0; x < width; x++)
+    {
+        for (unsigned int y = 0; y < height; y++)
+        {
+            fprintf(fp, "%i\n", (int)(255.0 * (*(img_src + x + y*width) - min_value) / (max_value - min_value)));
+        }
+    }
+    
+    fclose(fp);
 }
