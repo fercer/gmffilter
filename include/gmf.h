@@ -17,14 +17,14 @@ None
 #ifndef GMF_DLL_H_INCLUDED
 #define GMF_DLL_H_INCLUDED
 
-#ifdef BUILDING_PYHTON_MODULE
+#ifdef BUILDING_PYTHON_MODULE
     #include <Python.h>
     #include <numpy/ndarraytypes.h>
     #include <numpy/ufuncobject.h>
     #include <numpy/npy_3kcompat.h>
     #define GMF_DLL_PUBLIC
     #define GMF_DLL_LOCAL
-#else
+#else    
     #if defined(_WIN32) || defined(_WIN64)
         #ifdef BUILDING_GMF_DLL
             #ifdef __GNUC__
@@ -50,7 +50,6 @@ None
         #endif
     #endif
 #endif
-
 #ifdef COMPILE_ACML
 #include <acml.h>
 #define ft_complex doublecomplex
@@ -139,11 +138,11 @@ void GMF_DLL_PUBLIC multiscaleGMFilter_multipleinputs(double * raw_input, const 
 
 void GMF_DLL_PUBLIC multiscaleGMFilterWithAngles_multipleinputs(double * raw_input, unsigned int n_inputs, char * mask, double * output, double * angles_output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels);
 
-#ifdef BUILDING_PYHTON_MODULE
+#ifdef BUILDING_PYTHON_MODULE
 static PyObject* gmfFilter(PyObject *self, PyObject *args);
 #endif
 
-#ifdef BUILDING_PYHTON_MODULE
+#ifdef BUILDING_PYTHON_MODULE
 static PyObject* gmfFilterWithAngles(PyObject *self, PyObject *args);
 #endif
 
