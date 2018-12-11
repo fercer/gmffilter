@@ -990,7 +990,7 @@ void multiscaleGMFilterWithAngles_multipleinputs(double * raw_input, unsigned in
 
 
 
-#ifdef BUILDING_PYHTON_MODULE
+#ifdef BUILDING_PYTHON_MODULE
 static PyObject* gmfFilter(PyObject *self, PyObject *args)
 {
     PyArrayObject *raw_input;
@@ -1006,7 +1006,7 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     char * mask_data = NULL;
     npy_intp mask_stride;
     
-    unsigned int par_T:
+    unsigned int par_T;
     unsigned int par_L;
     unsigned int par_K;
     
@@ -1040,19 +1040,19 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     mask_stride = ((PyArrayObject*)mask)->strides[((PyArrayObject*)mask)->nd - 1];
     
     PyObject * gmf_response = NULL;
-    if (n_imgs > 1 && par_T_scales > 1) 
+    if (n_imgs > 1 && par_sigma_scales > 1) 
     {
-        npy_intp gmf_response_shape[] = { n_imgs, par_T_scales, height, width };      
+        npy_intp gmf_response_shape[] = { n_imgs, par_sigma_scales, height, width };      
         gmf_response = PyArray_SimpleNew(4, &gmf_response_shape[0], NPY_DOUBLE);
     }
-    else if (n_imgs > 1 && par_T_scales == 1)
+    else if (n_imgs > 1 && par_sigma_scales == 1)
     {
         npy_intp gmf_response_shape[] = { n_imgs, height, width };        
         gmf_response = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
     }
-    else if (n_imgs == 1 && par_T_scales > 1)
+    else if (n_imgs == 1 && par_sigma_scales > 1)
     {
-        npy_intp gmf_response_shape[] = { par_T_scales, height, width };      
+        npy_intp gmf_response_shape[] = { par_sigma_scales, height, width };      
         gmf_response = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
     }
     else
@@ -1067,12 +1067,12 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     if (n_imgs > 1)
     {
         DEBMSG("Multiscale Gaussian matched filtering over multiple images\n");
-        multiscaleGMFilter_multipleinputs((double)raw_input_data, n_imgs, (double)mask_data, (double)gmf_response_data, height, width, par_T, par_L, (double)par_sigma_data, par_sigma_scales, par_K, 0);
+        multiscaleGMFilter_multipleinputs((double*)raw_input_data, n_imgs, mask_data, (double*)gmf_response_data, height, width, par_T, par_L, (double*)par_sigma_data, par_sigma_scales, par_K, 0);
     }
     else
     {
         DEBMSG("Multiscale Gaussian matched filtering over a single image\n");
-        multiscaleGMFilter((double)raw_input_data, (double)mask_data, (double)gmf_response_data, height, width, par_T, par_L, (double)par_sigma_data, par_sigma_scales, par_K, 0);
+        multiscaleGMFilter((double*)raw_input_data, mask_data, (double*)gmf_response_data, height, width, par_T, par_L, (double*)par_sigma_data, par_sigma_scales, par_K, 0);
     }
     
     return gmf_response;
@@ -1081,7 +1081,7 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
 
 
 
-#ifdef BUILDING_PYHTON_MODULE
+#ifdef BUILDING_PYTHON_MODULE
 static PyObject* gmfFilterWithAngles(PyObject *self, PyObject *args)
 {
     PyArrayObject *raw_input;
@@ -1097,7 +1097,7 @@ static PyObject* gmfFilterWithAngles(PyObject *self, PyObject *args)
     char * mask_data = NULL;
     npy_intp mask_stride;
     
-    unsigned int par_T:
+    unsigned int par_T;
     unsigned int par_L;
     unsigned int par_K;
     
@@ -1132,21 +1132,21 @@ static PyObject* gmfFilterWithAngles(PyObject *self, PyObject *args)
     
     PyObject * gmf_response = NULL;
     PyObject * gmf_response_angles = NULL;
-    if (n_imgs > 1 && par_T_scales > 1) 
+    if (n_imgs > 1 && par_sigma_scales > 1) 
     {
-        npy_intp gmf_response_shape[] = { n_imgs, par_T_scales, height, width };
+        npy_intp gmf_response_shape[] = { n_imgs, par_sigma_scales, height, width };
         gmf_response = PyArray_SimpleNew(4, &gmf_response_shape[0], NPY_DOUBLE);
         gmf_response_angles = PyArray_SimpleNew(4, &gmf_response_shape[0], NPY_DOUBLE);
     }
-    else if (n_imgs > 1 && par_T_scales == 1)
+    else if (n_imgs > 1 && par_sigma_scales == 1)
     {
         npy_intp gmf_response_shape[] = { n_imgs, height, width };
         gmf_response = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
         gmf_response_angles = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
     }
-    else if (n_imgs == 1 && par_T_scales > 1)
+    else if (n_imgs == 1 && par_sigma_scales > 1)
     {
-        npy_intp gmf_response_shape[] = { par_T_scales, height, width };
+        npy_intp gmf_response_shape[] = { par_sigma_scales, height, width };
         gmf_response = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
         gmf_response_angles = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
     }
@@ -1165,17 +1165,57 @@ static PyObject* gmfFilterWithAngles(PyObject *self, PyObject *args)
     if (n_imgs > 1)
     {
         DEBMSG("Multiscale Gaussian matched filtering over multiple images\n");
-        multiscaleGMFilterWithAngles_multipleinputs((double)raw_input_data, n_imgs, (double)mask_data, (double)gmf_response_data, (double)gmf_response_angles_data, height, width, par_T, par_L, (double)par_sigma_data, par_sigma_scales, par_K, 0);
+        multiscaleGMFilterWithAngles_multipleinputs((double*)raw_input_data, n_imgs, mask_data, (double*)gmf_response_data, (double*)gmf_response_angles_data, height, width, par_T, par_L, (double*)par_sigma_data, par_sigma_scales, par_K, 0);
     }
     else
     {
         DEBMSG("Multiscale Gaussian matched filtering over a single image\n");
-        multiscaleGMFilterWithAngles((double)raw_input_data, (double)mask_data, (double)gmf_response_data,(double)gmf_response_angles_data, height, width, par_T, par_L, (double)par_sigma_data, par_sigma_scales, par_K, 0);
+        multiscaleGMFilterWithAngles((double*)raw_input_data, mask_data, (double*)gmf_response_data,(double*)gmf_response_angles_data, height, width, par_T, par_L, (double*)par_sigma_data, par_sigma_scales, par_K, 0);
     }
     
     PyObject *gmf_response_tuple = PyTuple_New(2);
     PyTuple_SetItem(gmf_response_tuple, 0, gmf_response);
     PyTuple_SetItem(gmf_response_tuple, 1, gmf_response_angles);
     return gmf_response_tuple;
+}
+#endif
+
+
+
+#ifdef BUILDING_PYTHON_MODULE
+static PyMethodDef gmf_methods[] = {
+    { "gaborFilter", gmfFilter, METH_VARARGS, "applies the Gaussian matched filter to the input image, using the parameters T, L, sigma and K passed, if the parameter sigma is a list, then the multiscale Gaussian matched filter is pplied instead." },
+    { "gaborFilterWithAngles", gmfFilterWithAngles, METH_VARARGS, "applies the Gaussian matched filter to the input image, using the parameters T, L, sigma and K passed, if the parameter sigma is a list, then the multiscale Gaussian matched filter is pplied instead, the angles of maximal response are returned as well." },
+    { NULL, NULL, 0, NULL }
+};
+#endif
+
+
+#ifdef BUILDING_PYTHON_MODULE
+static struct PyModuleDef gmf_moduledef = {
+    PyModuleDef_HEAD_INIT,
+    "gmf",
+    NULL,
+    -1,
+    gmf_methods,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+};
+#endif
+
+
+#ifdef BUILDING_PYTHON_MODULE
+PyMODINIT_FUNC PyInit_gmf(void)
+{
+    PyObject *m;
+    m = PyModule_Create(&gmf_moduledef);
+    if (!m) {
+        return NULL;
+    }
+    import_array();
+    
+    return m;
 }
 #endif
