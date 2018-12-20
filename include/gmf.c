@@ -1009,6 +1009,8 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     unsigned int par_L;
     unsigned int par_K;
     
+    DEBMSG("Filtering by Gaussian matched filters");
+    
     if (!PyArg_ParseTuple(args, "O!IIO!IO!", &PyArray_Type, &raw_input, &par_T, &par_L, &PyArray_Type, &multiscale_par_sigma, &par_K, &PyArray_Type, &mask))
     {
         return NULL;
@@ -1018,6 +1020,10 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     par_sigma_scales = ((PyArrayObject*)multiscale_par_sigma)->dimensions[0];
     par_sigma_stride = ((PyArrayObject*)multiscale_par_sigma)->strides[((PyArrayObject*)multiscale_par_sigma)->nd-1];
     
+    DEBNUMMSG("T = %i", par_T);
+    DEBNUMMSG(", L = %i", par_L);
+    DEBNUMMSG(", K = %i", par_K);
+    DEBNUMMSG(", n sigma scales = %i\n", (intpar_sigma_scales);
     
     if (((PyArrayObject*)raw_input)->nd > 2)
     {
@@ -1035,8 +1041,9 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     raw_input_data  = ((PyArrayObject*)raw_input)->data;
     raw_input_stride = ((PyArrayObject*)raw_input)->strides[((PyArrayObject*)raw_input)->nd - 1];
     
-    mask_data = ((PyArrayObject*)mask)->data;
-    mask_stride = ((PyArrayObject*)mask)->strides[((PyArrayObject*)mask)->nd - 1];
+	mask_data = ((PyArrayObject*)mask)->data;
+	mask_stride = ((PyArrayObject*)mask)->strides[((PyArrayObject*)mask)->nd - 1];
+ 
     
     PyObject * gmf_response = NULL;
     if (n_imgs > 1 && par_sigma_scales > 1) 
@@ -1073,7 +1080,7 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
         DEBMSG("Multiscale Gaussian matched filtering over a single image\n");
         multiscaleGMFilter((double*)raw_input_data, mask_data, (double*)gmf_response_data, height, width, par_T, par_L, (double*)par_sigma_data, par_sigma_scales, par_K, 0);
     }
-    
+      
     return gmf_response;
 }
 #endif
@@ -1108,8 +1115,7 @@ static PyObject* gmfFilterWithAngles(PyObject *self, PyObject *args)
     par_sigma_data = ((PyArrayObject*)multiscale_par_sigma)->data;
     par_sigma_scales = ((PyArrayObject*)multiscale_par_sigma)->dimensions[0];
     par_sigma_stride = ((PyArrayObject*)multiscale_par_sigma)->strides[((PyArrayObject*)multiscale_par_sigma)->nd-1];
-    
-    
+        
     if (((PyArrayObject*)raw_input)->nd > 2)
     {
         n_imgs = ((PyArrayObject*)raw_input)->dimensions[0];

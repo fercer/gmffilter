@@ -33,7 +33,7 @@ if "%1" == "python" (
         SET installation_path=%3
     )
 )
-if "%version%" == "release" SET macros_definitions=%macros_definitions% /DNDEBUG
+if "%version%" == "release" SET macros_definitions=%macros_definitions% /DNDEBUG /O2
 
 
 cl /LD %macros_definitions% %required_include_paths% /Fo:build\gmf.o include\gmf.c %required_libs% /link /DLL /IMPLIB:.\lib\%libname% /out:.\lib\%dllname%
