@@ -118,9 +118,9 @@ void GMF_DLL_LOCAL generateGMFTemplate_impl(ft_complex ** fft_GMF_kernels, const
 
 void GMF_DLL_LOCAL generateGMFTemplateUntrimmed_impl(ft_complex ** fft_GMF_kernels, const int par_T, const int par_L, const double par_sigma, const int par_K, const int nearest_2p_dim, unsigned int * GMF_kernel_height, unsigned int * GMF_kernel_width);
 
-void GMF_DLL_LOCAL applyGMFWithAngles(ft_complex* fft_img_src, double* img_dst, double* ang_dst, const int nearest_2p_dim, const int height, const int width, const int GMF_kernel_height, const int GMF_kernel_width, const int par_K, ft_complex ** fft_GMF_kernels);
+void GMF_DLL_LOCAL applyGMFWithAngles(ft_complex* fft_img_src, double* img_dst, double* ang_dst, const int nearest_2p_dim, const int height, const int width, const unsigned int s_scales, const int GMF_kernel_height, const int GMF_kernel_width, const int par_K, ft_complex ** fft_GMF_kernels);
 
-void GMF_DLL_LOCAL applyGMF(ft_complex* fft_img_src, double* img_dst, const int nearest_2p_dim, const int height, const int width, const int GMF_kernel_height, const int GMF_kernel_width, const int par_K, ft_complex ** fft_GMF_kernels);
+void GMF_DLL_LOCAL applyGMF(ft_complex* fft_img_src, double* img_dst, const int nearest_2p_dim, const int height, const int width, const unsigned int s_scales, const int GMF_kernel_height, const int GMF_kernel_width, const int par_K, ft_complex ** fft_GMF_kernels);
 
 void GMF_DLL_PUBLIC singleScaleGMFilter(double * raw_input, char * mask, double * output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels);
 

@@ -246,7 +246,7 @@ void generateGMFTemplateUntrimmed_impl(ft_complex ** fft_GMF_kernels, const int 
 }
 
 
-void applyGMFWithAngles(ft_complex * fft_img_src, double* img_dst, double* ang_dst, const int nearest_2p_dim, const int height, const int width, const int GMF_kernel_height, const int GMF_kernel_width, const int par_K, ft_complex ** fft_GMF_kernels)
+void applyGMFWithAngles(ft_complex * fft_img_src, double* img_dst, double* ang_dst, const int nearest_2p_dim, const int height, const int width, const unsigned int s_scales, const int GMF_kernel_height, const int GMF_kernel_width, const int par_K, ft_complex ** fft_GMF_kernels)
 {	
 	/* Offset for the zero padded image */
 	const unsigned int offset_y = GMF_kernel_height / 2;
@@ -329,8 +329,11 @@ void applyGMFWithAngles(ft_complex * fft_img_src, double* img_dst, double* ang_d
 
 	for (unsigned int i = 0; i < height; i++)
 	{
-		memcpy(img_dst + i*width, max_resp + (i + offset_y) * nearest_2p_dim + offset_x, width*sizeof(double));
-		memcpy(ang_dst + i*width, max_resp_angle + (i + offset_y) * nearest_2p_dim + offset_x, width*sizeof(double));
+		for (unsigned int j = 0; j < width; j++)
+		{
+			*(img_dst + i*width*s_scales + j*s_scales) = *(max_resp + (i + offset_y)*nearest_2p_dim + j + offset_x);
+			*(ang_dst + i*width*s_scales + j*s_scales) = *(max_resp_angle + (i + offset_y)*nearest_2p_dim + j + offset_x);
+		}
 	}
 	
 	free(max_resp);
@@ -338,7 +341,7 @@ void applyGMFWithAngles(ft_complex * fft_img_src, double* img_dst, double* ang_d
 }
 
 
-void applyGMF(ft_complex * fft_img_src, double* img_dst, const int nearest_2p_dim, const int height, const int width, const int GMF_kernel_height, const int GMF_kernel_width, const int par_K, ft_complex ** fft_GMF_kernels)
+void applyGMF(ft_complex * fft_img_src, double* img_dst, const int nearest_2p_dim, const int height, const int width, const unsigned int s_scales, const int GMF_kernel_height, const int GMF_kernel_width, const int par_K, ft_complex ** fft_GMF_kernels)
 {	
 	/* Offset for the zero padded image */
 	const unsigned int offset_y = GMF_kernel_height / 2;
@@ -417,7 +420,10 @@ void applyGMF(ft_complex * fft_img_src, double* img_dst, const int nearest_2p_di
 
 	for (unsigned int i = 0; i < height; i++)
 	{
-		memcpy(img_dst + i*width, max_resp + (i + offset_y) * nearest_2p_dim + offset_x, width*sizeof(double));
+		for (unsigned int j = 0; j < width; j++)
+		{
+			*(img_dst + i*width*s_scales + j*s_scales) = *(max_resp + (i + offset_y)*nearest_2p_dim + j + offset_x);
+		}
 	}
 	
 	free(max_resp);
@@ -466,7 +472,7 @@ void singleScaleGMFilter(double * raw_input, char * mask, double * output, const
 	}
 	
 	// Apply the single-scale filter:
-	applyGMF(fft_img_src, output, nearest_2p_dim, height, width, GMF_kernel_height, GMF_kernel_width, par_K, fft_GMF_kernels);
+	applyGMF(fft_img_src, output, nearest_2p_dim, height, width, 1, GMF_kernel_height, GMF_kernel_width, par_K, fft_GMF_kernels);
 
 	// Apply the mask, the mask(x, y) must be {0, 1}:
 	char * m_ptr = mask;
@@ -531,7 +537,7 @@ void singleScaleGMFilterWithAngles(double * raw_input, char * mask, double * out
 	}
 	
 	// Apply the single-scale filter:
-	applyGMFWithAngles(fft_img_src, output, angles_output, nearest_2p_dim, height, width, GMF_kernel_height, GMF_kernel_width, par_K, fft_GMF_kernels);
+	applyGMFWithAngles(fft_img_src, output, angles_output, nearest_2p_dim, height, width, 1, GMF_kernel_height, GMF_kernel_width, par_K, fft_GMF_kernels);
 
 	// Apply the mask, the mask(x, y) must be {0, 1}:
 	char * m_ptr = mask;
@@ -597,7 +603,7 @@ void singleScaleGMFilter_multipleinputs(double * raw_input, const unsigned int n
 		ft_forward(nearest_2p_dim, nearest_2p_dim, zp_img, fft_img_src);
 		ft_release_forward;
 		
-		applyGMF(fft_img_src, output + i*height*width, nearest_2p_dim, height, width, GMF_kernel_height, GMF_kernel_width, par_K, fft_GMF_kernels);
+		applyGMF(fft_img_src, output + i*height*width, nearest_2p_dim, height, width, 1, GMF_kernel_height, GMF_kernel_width, par_K, fft_GMF_kernels);
 
 		// Apply the mask, the mask(x, y) must be {0, 1}:
 		char * m_ptr = mask + i*height*width;
@@ -664,7 +670,7 @@ void singleScaleGMFilterWithAngles_multipleinputs(double * raw_input, const unsi
 		ft_forward(nearest_2p_dim, nearest_2p_dim, zp_img, fft_img_src);
 		ft_release_forward;
 		
-		applyGMFWithAngles(fft_img_src, output + i*height*width, angles_output + i*height*width, nearest_2p_dim, height, width, GMF_kernel_height, GMF_kernel_width, par_K, fft_GMF_kernels);
+		applyGMFWithAngles(fft_img_src, output + i*height*width, angles_output + i*height*width, nearest_2p_dim, height, width, 1, GMF_kernel_height, GMF_kernel_width, par_K, fft_GMF_kernels);
 
 		// Apply the mask, the mask(x, y) must be {0, 1}:
 		char * m_ptr = mask + i*height*width;
@@ -736,13 +742,13 @@ void multiscaleGMFilter(double * raw_input, char * mask, double * output, const 
 		}
 	
 		// Apply the single-scale filter:
-		applyGMF(fft_img_src, output + s*height*width, nearest_2p_dim, height, width, GMF_kernel_height, GMF_kernel_width, par_K, fft_GMF_kernels);
+		applyGMF(fft_img_src, output + s, nearest_2p_dim, height, width, sigma_scales, GMF_kernel_height, GMF_kernel_width, par_K, fft_GMF_kernels);
 
 		// Apply the mask, the mask(x, y) must be {0, 1}:
 		char * m_ptr = mask;
-		double *o_ptr = output;
+		double *o_ptr = output + s;
 		
-		for (unsigned int xy = 0; xy < height*width; xy++, m_ptr++, o_ptr++)
+		for (unsigned int xy = 0; xy < height*width; xy++, m_ptr++, o_ptr+=sigma_scales)
 		{
 			*o_ptr = *o_ptr * (double)*m_ptr;
 		}
@@ -805,14 +811,14 @@ void multiscaleGMFilterWithAngles(double * raw_input, char * mask, double * outp
 		}
 	
 		// Apply the single-scale filter:
-		applyGMFWithAngles(fft_img_src, output + s*height*width, angles_output + s*height*width, nearest_2p_dim, height, width, GMF_kernel_height, GMF_kernel_width, par_K, fft_GMF_kernels);
+		applyGMFWithAngles(fft_img_src, output + s, angles_output + s, nearest_2p_dim, height, width, sigma_scales, GMF_kernel_height, GMF_kernel_width, par_K, fft_GMF_kernels);
 
 		// Apply the mask, the mask(x, y) must be {0, 1}:
 		char * m_ptr = mask;
-		double *o_ptr = output;
-		double *a_ptr = angles_output;
+		double *o_ptr = output + s;
+		double *a_ptr = angles_output + s;
 		
-		for (unsigned int xy = 0; xy < height*width; xy++, m_ptr++, o_ptr++, a_ptr++)
+		for (unsigned int xy = 0; xy < height*width; xy++, m_ptr++, o_ptr+=sigma_scales, a_ptr+=sigma_scales)
 		{
 			*o_ptr = *o_ptr * (double)*m_ptr;
 			*a_ptr = *a_ptr * (double)*m_ptr;
@@ -878,13 +884,13 @@ void multiscaleGMFilter_multipleinputs(double * raw_input, const unsigned int n_
 	
 		for (unsigned int s = 0; s < sigma_scales; s++)
 		{
-			applyGMF(fft_img_src, output + s*height*width + i*sigma_scales*height*width, nearest_2p_dim, height, width, GMF_kernel_height, GMF_kernel_width, par_K, *(fft_GMF_kernels + s));
+			applyGMF(fft_img_src, output + s + i*sigma_scales*height*width, nearest_2p_dim, height, width, sigma_scales, GMF_kernel_height, GMF_kernel_width, par_K, *(fft_GMF_kernels + s));
 
 			// Apply the mask, the mask(x, y) must be {0, 1}:
 			char * m_ptr = mask + i*height*width;
-			double *o_ptr = output + s*height*width + i*sigma_scales*height*width;
+			double *o_ptr = output + s + i*sigma_scales*height*width;
 		
-			for (unsigned int xy = 0; xy < height*width; xy++, m_ptr++, o_ptr++)
+			for (unsigned int xy = 0; xy < height*width; xy++, m_ptr++, o_ptr+=sigma_scales)
 			{
 				*o_ptr = *o_ptr * (double)*m_ptr;
 			}
@@ -956,14 +962,14 @@ void multiscaleGMFilterWithAngles_multipleinputs(double * raw_input, unsigned in
 	
 		for (unsigned int s = 0; s < sigma_scales; s++)
 		{
-			applyGMFWithAngles(fft_img_src, output + s*height*width + i*sigma_scales*height*width, angles_output + s*height*width + i*sigma_scales*height*width, nearest_2p_dim, height, width, GMF_kernel_height, GMF_kernel_width, par_K, *(fft_GMF_kernels + s));
+			applyGMFWithAngles(fft_img_src, output + s + i*sigma_scales*height*width, angles_output + s + i*sigma_scales*height*width, nearest_2p_dim, height, width, sigma_scales, GMF_kernel_height, GMF_kernel_width, par_K, *(fft_GMF_kernels + s));
 
 			// Apply the mask, the mask(x, y) must be {0, 1}:
 			char * m_ptr = mask + i*height*width;
-			double *o_ptr = output + s*height*width + i*sigma_scales*height*width;
-			double *a_ptr = angles_output + s*height*width + i*sigma_scales*height*width;
+			double *o_ptr = output + s + i*sigma_scales*height*width;
+			double *a_ptr = angles_output + s + i*sigma_scales*height*width;
 		
-			for (unsigned int xy = 0; xy < height*width; xy++, m_ptr++, o_ptr++, a_ptr++)
+			for (unsigned int xy = 0; xy < height*width; xy++, m_ptr++, o_ptr+=sigma_scales, a_ptr+=sigma_scales)
 			{
 				*o_ptr = *o_ptr * (double)*m_ptr;
 				*a_ptr = *a_ptr * (double)*m_ptr;
@@ -1023,7 +1029,7 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     DEBNUMMSG("T = %i", par_T);
     DEBNUMMSG(", L = %i", par_L);
     DEBNUMMSG(", K = %i", par_K);
-    DEBNUMMSG(", n sigma scales = %i\n", (intpar_sigma_scales);
+    DEBNUMMSG(", n sigma scales = %i\n", (int*)par_sigma_scales);
     
     if (((PyArrayObject*)raw_input)->nd > 2)
     {
@@ -1048,7 +1054,8 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     PyObject * gmf_response = NULL;
     if (n_imgs > 1 && par_sigma_scales > 1) 
     {
-        npy_intp gmf_response_shape[] = { n_imgs, par_sigma_scales, height, width };      
+		DEBMSG("Multiple inputs and multiple scales\n");
+        npy_intp gmf_response_shape[] = { n_imgs, height, width, par_sigma_scales };
         gmf_response = PyArray_SimpleNew(4, &gmf_response_shape[0], NPY_DOUBLE);
     }
     else if (n_imgs > 1 && par_sigma_scales == 1)
@@ -1058,7 +1065,7 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     }
     else if (n_imgs == 1 && par_sigma_scales > 1)
     {
-        npy_intp gmf_response_shape[] = { par_sigma_scales, height, width };      
+        npy_intp gmf_response_shape[] = { height, width, par_sigma_scales };      
         gmf_response = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
     }
     else
@@ -1139,7 +1146,7 @@ static PyObject* gmfFilterWithAngles(PyObject *self, PyObject *args)
     PyObject * gmf_response_angles = NULL;
     if (n_imgs > 1 && par_sigma_scales > 1) 
     {
-        npy_intp gmf_response_shape[] = { n_imgs, par_sigma_scales, height, width };
+        npy_intp gmf_response_shape[] = { n_imgs, height, width, par_sigma_scales };
         gmf_response = PyArray_SimpleNew(4, &gmf_response_shape[0], NPY_DOUBLE);
         gmf_response_angles = PyArray_SimpleNew(4, &gmf_response_shape[0], NPY_DOUBLE);
     }
@@ -1151,7 +1158,7 @@ static PyObject* gmfFilterWithAngles(PyObject *self, PyObject *args)
     }
     else if (n_imgs == 1 && par_sigma_scales > 1)
     {
-        npy_intp gmf_response_shape[] = { par_sigma_scales, height, width };
+        npy_intp gmf_response_shape[] = { height, width, par_sigma_scales };
         gmf_response = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
         gmf_response_angles = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
     }
