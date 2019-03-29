@@ -1023,7 +1023,7 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     DEBNUMMSG("T = %i", par_T);
     DEBNUMMSG(", L = %i", par_L);
     DEBNUMMSG(", K = %i", par_K);
-    DEBNUMMSG(", n sigma scales = %i\n", (intpar_sigma_scales);
+    DEBNUMMSG(", n sigma scales = %i\n", (intpar_sigma_scales));
     
     if (((PyArrayObject*)raw_input)->nd > 2)
     {
