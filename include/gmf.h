@@ -24,7 +24,7 @@ None
     #include <numpy/npy_3kcompat.h>
     #define GMF_DLL_PUBLIC
     #define GMF_DLL_LOCAL
-#else    
+#else
     #if defined(_WIN32) || defined(_WIN64)
         #ifdef BUILDING_GMF_DLL
             #ifdef __GNUC__
@@ -125,7 +125,7 @@ void GMF_DLL_LOCAL applyGMF(ft_complex* fft_img_src, double* img_dst, const int 
 void GMF_DLL_PUBLIC singleScaleGMFilter(double * raw_input, char * mask, double * output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels);
 
 void GMF_DLL_PUBLIC singleScaleGMFilterWithAngles(double * raw_input, char * mask, double * output, double * angles_output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels);
-
+               
 void GMF_DLL_PUBLIC singleScaleGMFilter_multipleinputs(double * raw_input, const unsigned int n_inputs, char * mask, double * output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels);
 
 void GMF_DLL_PUBLIC singleScaleGMFilterWithAngles_multipleinputs(double * raw_input, const unsigned int n_inputs, char * mask, double * output, double * angles_output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels);

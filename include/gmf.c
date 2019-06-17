@@ -1193,7 +1193,6 @@ static PyObject* gmfFilterWithAngles(PyObject *self, PyObject *args)
 #endif
 
 
-
 #ifdef BUILDING_PYTHON_MODULE
 static PyMethodDef gmf_methods[] = {
 	{ "gmfFilter", gmfFilter, METH_VARARGS, "applies the Gaussian matched filter to the input image, using the parameters T, L, sigma and K passed, if the parameter sigma is a list, then the multiscale Gaussian matched filter is applied instead." },

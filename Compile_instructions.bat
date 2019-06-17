@@ -16,7 +16,8 @@ SET required_libs=%FFTW_LIBS%
 SET macros_definitions=/DBUILDING_GMF_DLL
 SET version=release
 SET install=false
-SET installation_path= 
+SET installation_path=
+
 
 if "%1" == "python" (
     SET required_include_paths=%required_include_paths% /I%PYTHON_3_6_INCLUDE_PATH% /I%NUMPY_CKN_INCLUDE_PATH%
@@ -35,12 +36,16 @@ if "%1" == "python" (
 )
 if "%version%" == "release" SET macros_definitions=%macros_definitions% /DNDEBUG /O2
 
+echo "Required include paths:"
+echo %required_include_paths%
 cl /LD %macros_definitions% %required_include_paths% /Fo:build\gmf.o include\gmf.c %required_libs% /link /DLL /IMPLIB:.\lib\%libname% /out:.\lib\%dllname%
 
 echo %macros_definitions%
+echo %PYTHON_3_6_INCLUDE_PATH%
 echo %version%
 echo %install%
 echo %installation_path%
+echo Python path: %PYTHONPATH%
 
 if "%install%" == "true" (
     echo Copy module to: %installation_path%\
