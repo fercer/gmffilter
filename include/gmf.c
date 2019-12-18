@@ -1054,8 +1054,7 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     PyObject * gmf_response = NULL;
     if (n_imgs > 1 && par_sigma_scales > 1) 
     {
-		DEBMSG("Multiple inputs and multiple scales\n");
-        npy_intp gmf_response_shape[] = { n_imgs, height, width, par_sigma_scales };
+        npy_intp gmf_response_shape[] = { n_imgs, par_sigma_scales, height, width };      
         gmf_response = PyArray_SimpleNew(4, &gmf_response_shape[0], NPY_DOUBLE);
     }
     else if (n_imgs > 1 && par_sigma_scales == 1)
@@ -1065,7 +1064,7 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     }
     else if (n_imgs == 1 && par_sigma_scales > 1)
     {
-        npy_intp gmf_response_shape[] = { height, width, par_sigma_scales };      
+        npy_intp gmf_response_shape[] = { par_sigma_scales, height, width };      
         gmf_response = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
     }
     else
@@ -1146,7 +1145,11 @@ static PyObject* gmfFilterWithAngles(PyObject *self, PyObject *args)
     PyObject * gmf_response_angles = NULL;
     if (n_imgs > 1 && par_sigma_scales > 1) 
     {
+<<<<<<< HEAD
         npy_intp gmf_response_shape[] = { n_imgs, height, width, par_sigma_scales };
+=======
+        npy_intp gmf_response_shape[] = { n_imgs, par_sigma_scales, height, width };
+>>>>>>> 65f007251d900d604cd2856d82ac52edf0d54bec
         gmf_response = PyArray_SimpleNew(4, &gmf_response_shape[0], NPY_DOUBLE);
         gmf_response_angles = PyArray_SimpleNew(4, &gmf_response_shape[0], NPY_DOUBLE);
     }
@@ -1158,7 +1161,11 @@ static PyObject* gmfFilterWithAngles(PyObject *self, PyObject *args)
     }
     else if (n_imgs == 1 && par_sigma_scales > 1)
     {
+<<<<<<< HEAD
         npy_intp gmf_response_shape[] = { height, width, par_sigma_scales };
+=======
+        npy_intp gmf_response_shape[] = { par_sigma_scales, height, width };
+>>>>>>> 65f007251d900d604cd2856d82ac52edf0d54bec
         gmf_response = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
         gmf_response_angles = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
     }
@@ -1196,15 +1203,22 @@ static PyObject* gmfFilterWithAngles(PyObject *self, PyObject *args)
 
 #ifdef BUILDING_PYTHON_MODULE
 static PyMethodDef gmf_methods[] = {
+<<<<<<< HEAD
 	{ "gmfFilter", gmfFilter, METH_VARARGS, "applies the Gaussian matched filter to the input image, using the parameters T, L, sigma and K passed, if the parameter sigma is a list, then the multiscale Gaussian matched filter is applied instead." },
 	{ "gmfFilterWithAngles", gmfFilterWithAngles, METH_VARARGS, "applies the Gaussian matched filter to the input image, using the parameters T, L, sigma and K passed, if the parameter sigma is a list, then the multiscale Gaussian matched filter is applied instead, the angles of the max response are saved too." },
 	{ NULL, NULL, 0, NULL }
+=======
+    { "gaborFilter", gmfFilter, METH_VARARGS, "applies the Gaussian matched filter to the input image, using the parameters T, L, sigma and K passed, if the parameter sigma is a list, then the multiscale Gaussian matched filter is pplied instead." },
+    { "gaborFilterWithAngles", gmfFilterWithAngles, METH_VARARGS, "applies the Gaussian matched filter to the input image, using the parameters T, L, sigma and K passed, if the parameter sigma is a list, then the multiscale Gaussian matched filter is pplied instead, the angles of maximal response are returned as well." },
+    { NULL, NULL, 0, NULL }
+>>>>>>> 65f007251d900d604cd2856d82ac52edf0d54bec
 };
 #endif
 
 
 #ifdef BUILDING_PYTHON_MODULE
 static struct PyModuleDef gmf_moduledef = {
+<<<<<<< HEAD
 	PyModuleDef_HEAD_INIT,
 	"gmf",
 	NULL,
@@ -1214,6 +1228,17 @@ static struct PyModuleDef gmf_moduledef = {
 	NULL,
 	NULL,
 	NULL
+=======
+    PyModuleDef_HEAD_INIT,
+    "gmf",
+    NULL,
+    -1,
+    gmf_methods,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+>>>>>>> 65f007251d900d604cd2856d82ac52edf0d54bec
 };
 #endif
 
@@ -1221,6 +1246,7 @@ static struct PyModuleDef gmf_moduledef = {
 #ifdef BUILDING_PYTHON_MODULE
 PyMODINIT_FUNC PyInit_gmf(void)
 {
+<<<<<<< HEAD
 	PyObject *m;
 	m = PyModule_Create(&gmf_moduledef);
 	if (!m) {
@@ -1231,3 +1257,15 @@ PyMODINIT_FUNC PyInit_gmf(void)
 	return m;
 }
 #endif
+=======
+    PyObject *m;
+    m = PyModule_Create(&gmf_moduledef);
+    if (!m) {
+        return NULL;
+    }
+    import_array();
+    
+    return m;
+}
+#endif
+>>>>>>> 65f007251d900d604cd2856d82ac52edf0d54bec
