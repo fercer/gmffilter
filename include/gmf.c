@@ -633,16 +633,12 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     unsigned int par_T;
     unsigned int par_L;
     unsigned int par_K;
-    /*
-	static char *kwlist[] = {
-        "untrimmed",
-        "templates_src",
-        NULL
-    };
-	*/
+   
+	unsigned char untrimmed_kernels = 0;
+    PyArrayObject *template_src = NULL;
 
-    //if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!IIO!IO!", kw_list, &PyArray_Type, &raw_input, &par_T, &par_L, &PyArray_Type, &multiscale_par_sigma, &par_K))
-    if (!PyArg_ParseTuple(args, "O!IIO!I", &PyArray_Type, &raw_input, &par_T, &par_L, &PyArray_Type, &multiscale_par_sigma, &par_K))
+	/** untrimmed kernel indicator and template src is an optional argument, wich is specified after '|' */
+    if (!PyArg_ParseTuple(args, "O!IIO!I|bO!", &PyArray_Type, &raw_input, &par_T, &par_L, &PyArray_Type, &multiscale_par_sigma, &par_K, &untrimmed_kernels, &PyArray_Type, &template_src))
     {
         return NULL;
     }
@@ -671,7 +667,14 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     PyObject * gmf_response = PyArray_SimpleNew(4, &gmf_response_shape[0], NPY_DOUBLE);
     
     double * gmf_response_data = (double*)((PyArrayObject*)gmf_response)->data;
-    multiscaleFilter(raw_input_data, gmf_response_data, n_imgs, height, width, par_T, par_L, par_sigma_data, par_sigma, par_K, 1, NULL);
+	if (template_src)
+	{
+    	multiscaleFilter(raw_input_data, gmf_response_data, n_imgs, height, width, par_T, par_L, par_sigma_data, par_sigma, par_K, untrimmed_kernels, (double*)template_src->data);
+	}
+	else
+	{
+    	multiscaleFilter(raw_input_data, gmf_response_data, n_imgs, height, width, par_T, par_L, par_sigma_data, par_sigma, par_K, untrimmed_kernels, NULL);
+	}
     
     return gmf_response;
 }
@@ -692,9 +695,11 @@ static PyObject* gmfFilterBank(PyObject *self, PyObject *args)
     unsigned int par_T;
     unsigned int par_L;
     unsigned int par_K;
-    
-    DEBMSG("Filtering by Gaussian matched filters");
-    if (!PyArg_ParseTuple(args, "IIO!I", &par_T, &par_L, &PyArray_Type, &multiscale_par_sigma, &par_K))
+
+	unsigned char untrimmed_kernels = 0;
+
+	/** untrimmed kernel indicator and template src is an optional argument, wich is specified after '|' */
+	if (!PyArg_ParseTuple(args, "IIO!I|b", &par_T, &par_L, &PyArray_Type, &multiscale_par_sigma, &par_K, &untrimmed_kernels))
     {
         return NULL;
     }
@@ -703,11 +708,6 @@ static PyObject* gmfFilterBank(PyObject *self, PyObject *args)
     par_sigma = ((PyArrayObject*)multiscale_par_sigma)->dimensions[0];
     par_sigma_stride = ((PyArrayObject*)multiscale_par_sigma)->strides[((PyArrayObject*)multiscale_par_sigma)->nd-1];
     
-	DEBNUMMSG("Sigma: %f", *par_sigma_data);
-	DEBNUMMSG(", T: %i", par_T);
-	DEBNUMMSG(", L:%i", par_L);
-	DEBNUMMSG(", K:%i\n", par_K);
-
 	/* Get the nearest 2-based dimension: */
 	const double max_dim = 300.0;
 	const double nearest_power = floor(log2(max_dim)) + 1.0;
