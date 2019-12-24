@@ -616,8 +616,6 @@ void multiscaleFilter(double * raw_input, double * output, const unsigned int n_
 
 
 
-
-
 #ifdef BUILDING_PYTHON_MODULE
 //static PyObject* gmfFilter(PyObject *self, PyObject *args, PyObject *kwargs)
 static PyObject* gmfFilter(PyObject *self, PyObject *args)
@@ -714,7 +712,7 @@ static PyObject* gmfFilterBank(PyObject *self, PyObject *args)
 	const unsigned int nearest_2p_dim = (unsigned int)pow(2.0, nearest_power);
 
 	unsigned int kernel_height, kernel_width;
-	double * base_kernel = generateGMFTemplate(par_T, par_L, par_sigma, &kernel_height, &kernel_width, 0);
+	double * base_kernel = generateGMFTemplate(par_T, par_L, par_sigma, &kernel_height, &kernel_width, untrimmed_kernels);
 	double **filter_bank = generateFilterbank_space(base_kernel, par_K, nearest_2p_dim, kernel_height, kernel_width);
 	free(base_kernel);
 

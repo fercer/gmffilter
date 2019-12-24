@@ -126,14 +126,16 @@ void GMF_DLL_LOCAL multiscaleFilterAngles(double * raw_input, double * output, d
 void GMF_DLL_LOCAL applyFilter(ft_complex * fft_img_src, double* img_dst, const int nearest_2p_dim, const int height, const int width, const int kernel_height, const int kernel_width, const int par_K, ft_complex ** fft_filter_bank);
 void GMF_DLL_LOCAL multiscaleFilter(double * raw_input, double * output, const unsigned int n_inputs, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels, double ** template_src);
 
-
-
 #ifdef BUILDING_PYTHON_MODULE
 static PyObject* gmfFilter(PyObject *self, PyObject *args);
 #endif
 
 #ifdef BUILDING_PYTHON_MODULE
 static PyObject* gmfFilterWithAngles(PyObject *self, PyObject *args);
+#endif
+
+#ifdef BUILDING_PYTHON_MODULE
+static PyObject* gmfFilterBank(PyObject *self, PyObject *args);
 #endif
 
 #endif //GMF_DLL_H_INCLUDED

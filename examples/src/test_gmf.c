@@ -10,9 +10,9 @@ int main(int argc, char * argv[])
 {    
     if (argc < 2)
     {
-        printf("\nExample: Filter an input image using the Gabor filter\n");
+        printf("\nExample: Filter an input image using the GMF filter\n");
         printf("First argument is the path to a .PGM image in raw format\n");
-        printf("Second to fourth arguments are the parameters for the Gabor filter\n");
+        printf("Second to fourth arguments are the parameters for the GMF filter\n");
         return -1;
     }
  
@@ -20,7 +20,7 @@ int main(int argc, char * argv[])
     int par_L = 9;
     int par_T = 13;
     double par_sigma = 2.0;
- 
+
     FILE * fp_img = fopen(argv[1], "r");
     if (!fp_img)
     {
