@@ -17,157 +17,31 @@ None
 
 #include "gmf.h"
 
-double bicubicInterpolation_impl(double* src, const double x, const double y, const unsigned int src_height, const unsigned int src_width)
+
+double * generateTemplate(const unsigned int par_L, const double par_sigma, const double par_theta, unsigned int nearest_2p_dim)
 {
-	const int x_int = (int)floor(x);
-	const int y_int = (int)floor(y);
-
-	const double s0_x = x - (double)x_int;
-	const double s_1_x = 1.0 + s0_x;
-	const double s1_x = 1.0 - s0_x;
-	const double s2_x = 2.0 - s0_x;
-
-	const double s0_y = y - (double)y_int;
-	const double s_1_y = 1.0 + s0_y;
-	const double s1_y = 1.0 - s0_y;
-	const double s2_y = 2.0 - s0_y;
-
-	/* Compute coefficients for the x-axis interpolation */
-	const double ux_1 = -0.5 * s_1_x*s_1_x*s_1_x + 2.5 * s_1_x * s_1_x - 4.0 * s_1_x + 2.0;
-	const double ux0 = 1.5 * s0_x*s0_x*s0_x - 2.5 * s0_x*s0_x + 1.0;
-	const double ux1 = 1.5 * s1_x*s1_x*s1_x - 2.5 * s1_x*s1_x + 1.0;
-	const double ux2 = -0.5 * s2_x*s2_x*s2_x + 2.5 * s2_x * s2_x - 4.0 * s2_x + 2.0;
-
-	/* Compute coefficients for the y-axis interpolation */
-	const double uy_1 = -0.5 * s_1_y*s_1_y*s_1_y + 2.5 * s_1_y * s_1_y - 4.0 * s_1_y + 2.0;
-	const double uy0 = 1.5 * s0_y*s0_y*s0_y - 2.5 * s0_y*s0_y + 1.0;
-	const double uy1 = 1.5 * s1_y*s1_y*s1_y - 2.5 * s1_y*s1_y + 1.0;
-	const double uy2 = -0.5 * s2_y*s2_y*s2_y + 2.5 * s2_y * s2_y - 4.0 * s2_y + 2.0;
-
-	return
-		(*(src + (y_int - 1) * src_width + x_int - 1) * uy_1 +
-			*(src + y_int * src_width + x_int - 1) * uy0 +
-			*(src + (y_int + 1) * src_width + x_int - 1) * uy1 +
-			*(src + (y_int + 2) * src_width + x_int - 1) * uy2) * ux_1 +
-			(*(src + (y_int - 1) * src_width + x_int) * uy_1 +
-				*(src + y_int * src_width + x_int) * uy0 +
-				*(src + (y_int + 1) * src_width + x_int) * uy1 +
-				*(src + (y_int + 2) * src_width + x_int) * uy2) * ux0 +
-				(*(src + (y_int - 1) * src_width + x_int + 1) * uy_1 +
-					*(src + y_int * src_width + x_int + 1) * uy0 +
-					*(src + (y_int + 1) * src_width + x_int + 1) * uy1 +
-					*(src + (y_int + 2) * src_width + x_int + 1) * uy2) * ux1 +
-					(*(src + (y_int - 1) * src_width + x_int + 2) * uy_1 +
-						*(src + y_int * src_width + x_int + 2) * uy0 +
-						*(src + (y_int + 1) * src_width + x_int + 2) * uy1 +
-						*(src + (y_int + 2) * src_width + x_int + 2) * uy2) * ux2;
-}
-
-
-void rotateBicubic_impl(double* src, double* dst, const double theta, const int src_height, const int src_width)
-{
-	double c_theta, s_theta;
-	double half_src_height, half_src_width;
-
-	if (theta == 0.0)
-	{
-		memcpy(dst, src, src_width * src_height * sizeof(double));
-		return;
-	}
-	else if (theta == 90.0)
-	{
-		c_theta = 0.0;
-		s_theta = 1.0;
-		half_src_height = floor((double)src_height / 2.0);
-		half_src_width = floor((double)src_width / 2.0);
-	}
-	else
-	{
-		c_theta = cos(theta / 180.0 * MY_PI);
-		s_theta = sin(theta / 180.0 * MY_PI);
-
-		half_src_height = (double)(src_height - 1) / 2.0;
-		half_src_width = (double)(src_width - 1) / 2.0;
-	}
-
-	/* Copy the source image to a temporal zero padded matrix. */
-	const int off_set = (int)floor(sqrt(half_src_height * half_src_height / 4.0 + half_src_width*half_src_width / 4.0) + 4.0);
-	double *src_temp = (double*)calloc((src_height + 2 * off_set) * (src_width + 2 * off_set), sizeof(double));
-	for (int i = 0; i < src_height; i++)
-	{
-		memcpy(src_temp + (src_width + 2 * off_set) * (i + off_set) + off_set, src + i*src_width, src_width * sizeof(double));
-	}
-	
-	for (int i = 0; i < src_height; i++)
-	{
-		for (int j = 0; j < src_width; j++)
-		{		
-			const double src_x = c_theta * ((double)j - half_src_width) - s_theta * ((double)i - half_src_height) + half_src_width;
-			const double src_y = s_theta * ((double)j - half_src_width) + c_theta * ((double)i - half_src_height) + half_src_height;
-			if (src_x < -(double)off_set || src_x >= (double)(src_width + off_set) || src_y < -(double)off_set || src_y >= (double)(src_height + off_set))
-			{
-				*(dst + src_width*i + j) = 0.0;
-			}
-			else
-			{
-				*(dst + src_width*i + j) = bicubicInterpolation_impl(src_temp, src_x + (double)off_set, src_y + (double)off_set, src_height + 2 * off_set, src_width + 2 * off_set);
-			}
-		}
-	}
-
-	free(src_temp);
-}
-
-
-double * generateTemplate(double * template_src, const int par_T, const int par_L, unsigned int *kernel_height, unsigned int *kernel_width, const unsigned char untrimmed_kernels)
-{	
-	unsigned int offset_x, offset_y;
-
-	if (untrimmed_kernels)
-	{
-		const unsigned int max_dim = (unsigned int)ceil(sqrt(2.0) * ((par_T > par_L) ? par_T : par_L));
-		*kernel_height = max_dim;
-		*kernel_width = max_dim;
-
-		offset_x = (unsigned int)floor((max_dim - par_T)/2.0);
-		offset_y = (unsigned int)floor((max_dim - par_L)/2.0);
-	}
-	else
-	{
-		*kernel_height = par_L + 6;
-		*kernel_width = par_T + 3;
-
-		offset_x = 1;
-		offset_y = 3;
-	}
-
 	/* Generate the GMF kernels */
 	double sum_GMF_kernel_base = 0.0;
-	double * template_src_it = template_src;
+	double * template_filter = (double*)calloc(nearest_2p_dim*nearest_2p_dim,sizeof(double));
 
-	for (unsigned int i = 0; i < par_L; i++)
+	const unsigned int par_T = (unsigned int)ceil(3.0 * par_sigma) + 1 - ((unsigned int)ceil(3.0 * par_sigma) % 2);
+	double y, x, u, v;
+	const double ctheta = cos(par_theta), stheta = sin(par_theta);
+
+ 	y = -(double)par_L/2.0;
+	for (unsigned int i = 0; i < par_L; i++, y+=1.0)
 	{
-		for (unsigned int j = 0; j < par_T; j++, template_src_it++)
+ 		x = -ceil((double)par_T/2.0);
+		for (unsigned int j = 0; j < par_T; j++, x+=1.0)
 		{
-			sum_GMF_kernel_base += *template_src_it;
+			u = x * ctheta - y * stheta;
+			v = y * stheta + x * ctheta;
+
+			*(template_filter + i * nearest_2p_dim + j) = 
 		}
 	}
 	
-	const double mean_GMF_kernel_base = sum_GMF_kernel_base / (double)(par_T*par_L);
-
-	double * base_kernel = (double*)calloc(*kernel_height * *kernel_width, sizeof(double));
-
-	double * GMF_kernel_it = base_kernel + offset_y* *kernel_width;
-	template_src_it = template_src;
-	for (unsigned int i = 0; i < par_L; i++, GMF_kernel_it+=offset_x)
-	{
-		for (unsigned int j = 0; j < par_T; j++, GMF_kernel_it++, template_src_it++)
-		{
-			*GMF_kernel_it = (*template_src_it - mean_GMF_kernel_base) / sum_GMF_kernel_base;
-		}
-	}
-
-	return base_kernel;
+	return template_filter;
 }
 
 
