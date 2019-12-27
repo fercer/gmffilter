@@ -114,29 +114,17 @@ static inline double bicubicInterpolation_impl(double* src, const double x, cons
 
 void GMF_DLL_LOCAL rotateBicubic_impl(double* src, double* dst, const double theta, const int src_height, const int src_width);
 
-void GMF_DLL_LOCAL generateGMFTemplate_impl(ft_complex ** fft_GMF_kernels, const int par_T, const int par_L, const double par_sigma, const int par_K, const int nearest_2p_dim, unsigned int * GMF_kernel_height, unsigned int * GMF_kernel_width);
+double * GMF_DLL_LOCAL generateTemplate(double * template_src, const int par_T, const int par_L, unsigned int *kernel_height, unsigned int *kernel_width, const unsigned char untrimmed_kernels);
+double * GMF_DLL_LOCAL generateGMFTemplate(const int par_T, const int par_L, const double par_sigma, unsigned int *kernel_height, unsigned int *kernel_width, const unsigned char untrimmed_kernels);
+double **  GMF_DLL_LOCAL generateFilterbank_space(double * base_kernel, const int par_K, const int nearest_2p_dim, const unsigned int kernel_height, const unsigned int kernel_width);
 
-void GMF_DLL_LOCAL generateGMFTemplateUntrimmed_impl(ft_complex ** fft_GMF_kernels, const int par_T, const int par_L, const double par_sigma, const int par_K, const int nearest_2p_dim, unsigned int * GMF_kernel_height, unsigned int * GMF_kernel_width);
+ft_complex ** GMF_DLL_LOCAL generateFilterbank(double * base_kernel, const int par_K, const int nearest_2p_dim, const unsigned int kernel_height, const unsigned int kernel_width);
 
-void GMF_DLL_LOCAL applyGMFWithAngles(ft_complex* fft_img_src, double* img_dst, double* ang_dst, const int nearest_2p_dim, const int height, const int width, const unsigned int s_scales, const int GMF_kernel_height, const int GMF_kernel_width, const int par_K, ft_complex ** fft_GMF_kernels);
+void GMF_DLL_LOCAL applyFilterAngles(ft_complex * fft_img_src, double* img_dst, double* ang_dst, const int nearest_2p_dim, const int height, const int width, const unsigned int s_scales, const int kernel_height, const int kernel_width, const int par_K, ft_complex ** fft_filter_bank);
+void GMF_DLL_LOCAL multiscaleFilterAngles(double * raw_input, double * output, double * angles, const unsigned int n_inputs, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels, double ** template_src);
 
-void GMF_DLL_LOCAL applyGMF(ft_complex* fft_img_src, double* img_dst, const int nearest_2p_dim, const int height, const int width, const unsigned int s_scales, const int GMF_kernel_height, const int GMF_kernel_width, const int par_K, ft_complex ** fft_GMF_kernels);
-
-void GMF_DLL_PUBLIC singleScaleGMFilter(double * raw_input, char * mask, double * output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels);
-
-void GMF_DLL_PUBLIC singleScaleGMFilterWithAngles(double * raw_input, char * mask, double * output, double * angles_output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels);
-               
-void GMF_DLL_PUBLIC singleScaleGMFilter_multipleinputs(double * raw_input, const unsigned int n_inputs, char * mask, double * output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels);
-
-void GMF_DLL_PUBLIC singleScaleGMFilterWithAngles_multipleinputs(double * raw_input, const unsigned int n_inputs, char * mask, double * output, double * angles_output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels);
-
-void GMF_DLL_PUBLIC multiscaleGMFilter(double * raw_input, char * mask, double * output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels);
-
-void GMF_DLL_PUBLIC multiscaleGMFilterWithAngles(double * raw_input, char * mask, double * output, double * angles_output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels);
-
-void GMF_DLL_PUBLIC multiscaleGMFilter_multipleinputs(double * raw_input, const unsigned int n_inputs, char * mask, double * output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels);
-
-void GMF_DLL_PUBLIC multiscaleGMFilterWithAngles_multipleinputs(double * raw_input, unsigned int n_inputs, char * mask, double * output, double * angles_output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels);
+void GMF_DLL_LOCAL applyFilter(ft_complex * fft_img_src, double* img_dst, const int nearest_2p_dim, const int height, const int width, const int kernel_height, const int kernel_width, const int par_K, ft_complex ** fft_filter_bank);
+void GMF_DLL_LOCAL multiscaleFilter(double * raw_input, double * output, const unsigned int n_inputs, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels, double ** template_src);
 
 #ifdef BUILDING_PYTHON_MODULE
 static PyObject* gmfFilter(PyObject *self, PyObject *args);
@@ -144,6 +132,10 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args);
 
 #ifdef BUILDING_PYTHON_MODULE
 static PyObject* gmfFilterWithAngles(PyObject *self, PyObject *args);
+#endif
+
+#ifdef BUILDING_PYTHON_MODULE
+static PyObject* gmfFilterBank(PyObject *self, PyObject *args);
 #endif
 
 #endif //GMF_DLL_H_INCLUDED

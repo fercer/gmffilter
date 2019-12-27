@@ -17,7 +17,6 @@ None
 
 #include "gmf.h"
 
-
 double bicubicInterpolation_impl(double* src, const double x, const double y, const unsigned int src_height, const unsigned int src_width)
 {
 	const int x_int = (int)floor(x);
@@ -120,137 +119,178 @@ void rotateBicubic_impl(double* src, double* dst, const double theta, const int 
 }
 
 
-void generateGMFTemplate_impl(ft_complex ** fft_GMF_kernels, const int par_T, const int par_L, const double par_sigma, const int par_K, const int nearest_2p_dim, unsigned int *GMF_kernel_height, unsigned int *GMF_kernel_width)
-{
-	ft_variables(nearest_2p_dim, nearest_2p_dim);
-	
-	*GMF_kernel_height = par_L + 6;
-	*GMF_kernel_width = par_T + 3;
+double * generateTemplate(double * template_src, const int par_T, const int par_L, unsigned int *kernel_height, unsigned int *kernel_width, const unsigned char untrimmed_kernels)
+{	
+	unsigned int offset_x, offset_y;
+
+	if (untrimmed_kernels)
+	{
+		const unsigned int max_dim = (unsigned int)ceil(sqrt(2.0) * ((par_T > par_L) ? par_T : par_L));
+		*kernel_height = max_dim;
+		*kernel_width = max_dim;
+
+		offset_x = (unsigned int)floor((max_dim - par_T)/2.0);
+		offset_y = (unsigned int)floor((max_dim - par_L)/2.0);
+	}
+	else
+	{
+		*kernel_height = par_L + 6;
+		*kernel_width = par_T + 3;
+
+		offset_x = 1;
+		offset_y = 3;
+	}
 
 	/* Generate the GMF kernels */
-	double *GMF_base_kernel_temp = (double*)calloc(*GMF_kernel_width, sizeof(double));
-	double Gauss_val, curr_x = -floor((double)(par_T) / 2.0);
 	double sum_GMF_kernel_base = 0.0;
+	double * template_src_it = template_src;
 
-	double *GMF_kernel_it = GMF_base_kernel_temp + 1;
-	for (unsigned int j = 0; j < (par_T + 1 - par_T % 2); j++, GMF_kernel_it++, curr_x += 1.0)
-	{
-		Gauss_val = 1.0 - exp(-curr_x * curr_x / (2.0 * par_sigma * par_sigma));
-		*GMF_kernel_it = Gauss_val;
-		sum_GMF_kernel_base += Gauss_val;
-	}
-
-	const double mean_GMF_kernel_base = sum_GMF_kernel_base / (double)par_T;
-	GMF_kernel_it = GMF_base_kernel_temp + 1;
-	for (unsigned int j = 0; j < par_T; j++, GMF_kernel_it++)
-	{
-		*GMF_kernel_it = (*GMF_kernel_it - mean_GMF_kernel_base) / (sum_GMF_kernel_base * par_L);
-	}
-
-	/* Orientate the K GMF kernels */
-	/* Transform the zero padded kernels to the frequencies space */
-	double *GMF_base_kernel = (double*)calloc(*GMF_kernel_height * *GMF_kernel_width, sizeof(double));
-	/* At 0 degrees: */
 	for (unsigned int i = 0; i < par_L; i++)
 	{
-		memcpy(GMF_base_kernel + (i + 3) * *GMF_kernel_width + 1, GMF_base_kernel_temp + 1, par_T * sizeof(double));
+		for (unsigned int j = 0; j < par_T; j++, template_src_it++)
+		{
+			sum_GMF_kernel_base += *template_src_it;
+		}
 	}
-	free(GMF_base_kernel_temp);
-
-	double *zp_GMF_rotated_kernel = (double*)calloc(nearest_2p_dim * nearest_2p_dim, sizeof(double));
-	double *GMF_rotated_kernel = (double*)malloc(*GMF_kernel_height * *GMF_kernel_width * sizeof(double));
 	
-	for (unsigned int k = 0; k < par_K; k++)
+	const double mean_GMF_kernel_base = sum_GMF_kernel_base / (double)(par_T*par_L);
+
+	double * base_kernel = (double*)calloc(*kernel_height * *kernel_width, sizeof(double));
+
+	double * GMF_kernel_it = base_kernel + offset_y* *kernel_width;
+	template_src_it = template_src;
+	for (unsigned int i = 0; i < par_L; i++, GMF_kernel_it+=offset_x)
 	{
-		rotateBicubic_impl(GMF_base_kernel, GMF_rotated_kernel, (double)k * 180.0 / (double)par_K, *GMF_kernel_height, *GMF_kernel_width);
+		for (unsigned int j = 0; j < par_T; j++, GMF_kernel_it++, template_src_it++)
+		{
+			*GMF_kernel_it = (*template_src_it - mean_GMF_kernel_base) / sum_GMF_kernel_base;
+		}
+	}
+
+	return base_kernel;
+}
+
+
+
+double * generateGMFTemplate(const int par_T, const int par_L, const double par_sigma, unsigned int *kernel_height, unsigned int *kernel_width, const unsigned char untrimmed_kernels)
+{	
+	unsigned int offset_x, offset_y;
+
+	if (untrimmed_kernels)
+	{
+		const unsigned int max_dim = (unsigned int)ceil(sqrt(2.0) * ((par_T > par_L) ? par_T : par_L));
+		*kernel_height = max_dim;
+		*kernel_width = max_dim;
+
+		offset_x = (unsigned int)floor((max_dim - par_T)/2.0);
+		offset_y = (unsigned int)floor((max_dim - par_L)/2.0);
+
+	}
+	else
+	{
+		*kernel_height = par_L + 6;
+		*kernel_width = par_T + 3;
+
+		offset_x = 1;
+		offset_y = 3;
 		
-		for (unsigned int i = 0; i < *GMF_kernel_height; i++)
-		{
-			memcpy(zp_GMF_rotated_kernel + i * nearest_2p_dim, GMF_rotated_kernel + i* *GMF_kernel_width, *GMF_kernel_width * sizeof(double));
-		}
-						
-		ft_forward_setup(nearest_2p_dim, nearest_2p_dim, zp_GMF_rotated_kernel, *(fft_GMF_kernels + k));
-		ft_forward(nearest_2p_dim, nearest_2p_dim, zp_GMF_rotated_kernel, *(fft_GMF_kernels + k));
-		ft_release_forward;
+	}
+
+	double * GMF_base_kernel = (double*)calloc(*kernel_height * *kernel_width, sizeof(double));
+	
+	/* Generate the GMF kernels */
+	double curr_x = -floor((double)(par_T) / 2.0);
+	double sum_GMF_kernel_base = 0.0;
+	double * GMF_kernel_it = GMF_base_kernel + offset_y * *kernel_width + offset_x;
+
+	for (unsigned int j = 0; j < par_T; j++, curr_x+=1.0, GMF_kernel_it++)
+	{
+		*GMF_kernel_it = 1.0 - exp(-curr_x*curr_x/(2.0*par_sigma*par_sigma));
+		sum_GMF_kernel_base += *GMF_kernel_it;
 	}
 	
+	const double mean_GMF_kernel_base = sum_GMF_kernel_base / (double)(par_T);
+	GMF_kernel_it = GMF_base_kernel + offset_y * *kernel_width + offset_x;
+	for (unsigned int j = 0; j < par_T; j++, GMF_kernel_it++)
+	{
+		*GMF_kernel_it = (*GMF_kernel_it - mean_GMF_kernel_base) / sum_GMF_kernel_base;
+	}
 
-	free(zp_GMF_rotated_kernel);
-	free(GMF_rotated_kernel);
-	free(GMF_base_kernel);
-	ft_close;
+	for (unsigned int i = 1; i < par_L; i++)	
+	{
+		memcpy(GMF_base_kernel + (i+offset_y)* *kernel_width, GMF_base_kernel + offset_y* *kernel_width, *kernel_width * sizeof(double));
+	}
+
+	return GMF_base_kernel;
 }
 
 
-void generateGMFTemplateUntrimmed_impl(ft_complex ** fft_GMF_kernels, const int par_T, const int par_L, const double par_sigma, const int par_K, const int nearest_2p_dim, unsigned int * GMF_kernel_height, unsigned int * GMF_kernel_width)
+
+ft_complex ** generateFilterbank(double * base_kernel, const int par_K, const int nearest_2p_dim, const unsigned int kernel_height, const unsigned int kernel_width)
 {
 	ft_variables(nearest_2p_dim, nearest_2p_dim);
 	
-	*GMF_kernel_height = par_L + 6;
-	*GMF_kernel_width = par_T + 3;
-	const unsigned int GMF_kernel_size = (int)ceil(sqrt(*GMF_kernel_height * *GMF_kernel_height + *GMF_kernel_width * *GMF_kernel_width) / 2.0);
-	const unsigned int GMF_kernel_offset_x = GMF_kernel_size - *GMF_kernel_width / 2;
-	const unsigned int GMF_kernel_offset_y = GMF_kernel_size - *GMF_kernel_height / 2;
+	ft_complex ** fft_filter_bank = allocate_ft_complex_pointers(par_K);
 
-	/* Generate the GMF kernels */
-	double* GMF_base_kernel_temp = (double*)calloc(*GMF_kernel_width, sizeof(double));
-	double Gauss_val, curr_x = -floor((double)(par_T) / 2.0);
-	double sum_GMF_kernel_base = 0.0;
-
-	double* GMF_kernel_it = GMF_base_kernel_temp + 1;
-	for (unsigned int j = 0; j < (par_T + 1 - par_T % 2); j++, GMF_kernel_it++, curr_x += 1.0)
-	{
-		Gauss_val = 1.0 - exp(-curr_x * curr_x / (2.0 * par_sigma * par_sigma));
-		*GMF_kernel_it = Gauss_val;
-		sum_GMF_kernel_base += Gauss_val;
-	}
-
-	const double mean_GMF_kernel_base = sum_GMF_kernel_base / (double)par_T;
-	GMF_kernel_it = GMF_base_kernel_temp + 1;
-	for (unsigned int j = 0; j < par_T; j++, GMF_kernel_it++)
-	{
-		*GMF_kernel_it = (*GMF_kernel_it - mean_GMF_kernel_base) / (sum_GMF_kernel_base * par_L);
-	}
-
-	/* Orientate the K GMF kernels */
+	/* Orientate the kernels into K directions */
 	/* Transform the zero padded kernels to the frequencies space */
-	double *GMF_base_kernel = (double*)calloc(GMF_kernel_size * GMF_kernel_size, sizeof(double));
-
-	/* At 0 degrees: */
-	for (unsigned int i = 0; i < par_L; i++)
-	{
-		memcpy(GMF_base_kernel + (i + 3 + GMF_kernel_offset_y) * *GMF_kernel_width + 1 + GMF_kernel_offset_x, GMF_base_kernel_temp + 1, par_T * sizeof(double));
-	}
-	free(GMF_base_kernel_temp);
-
-	double *zp_GMF_rotated_kernel = (double*)calloc(nearest_2p_dim * nearest_2p_dim, sizeof(double));
-	double *GMF_rotated_kernel = (double*)calloc(*GMF_kernel_height * *GMF_kernel_width, sizeof(double));
+	double *zp_rotated_kernel = (double*)calloc(nearest_2p_dim * nearest_2p_dim, sizeof(double));
+	double *rotated_kernel = (double*)malloc(kernel_height * kernel_width * sizeof(double));
+	
 	for (unsigned int k = 0; k < par_K; k++)
 	{
-		rotateBicubic_impl(GMF_base_kernel, GMF_rotated_kernel, (double)k * 180.0 / (double)par_K, *GMF_kernel_height, *GMF_kernel_width);
-
-		for (unsigned int i = 0; i < *GMF_kernel_height; i++)
+		*(fft_filter_bank + k) = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2 + 1));
+		rotateBicubic_impl(base_kernel, rotated_kernel, (double)k * 180.0 / (double)par_K, kernel_height, kernel_width);
+		
+		for (unsigned int i = 0; i < kernel_height; i++)
 		{
-			memcpy(zp_GMF_rotated_kernel + i * nearest_2p_dim, GMF_rotated_kernel + i* *GMF_kernel_width, *GMF_kernel_width * sizeof(double));
+			memcpy(zp_rotated_kernel + i * nearest_2p_dim, rotated_kernel + i* kernel_width, kernel_width * sizeof(double));
 		}
 
-		ft_forward_setup(nearest_2p_dim, nearest_2p_dim, zp_GMF_rotated_kernel, *(fft_GMF_kernels + k));
-		ft_forward(nearest_2p_dim, nearest_2p_dim, zp_GMF_rotated_kernel, *(fft_GMF_kernels + k));
+		ft_forward_setup(nearest_2p_dim, nearest_2p_dim, zp_rotated_kernel, *(fft_filter_bank + k));
+		ft_forward(nearest_2p_dim, nearest_2p_dim, zp_rotated_kernel, *(fft_filter_bank + k));
 		ft_release_forward;
 	}
 
-	free(zp_GMF_rotated_kernel);
-	free(GMF_rotated_kernel);
-	free(GMF_base_kernel);
+	free(zp_rotated_kernel);
+	free(rotated_kernel);
 	ft_close;
+
+	return fft_filter_bank;
 }
 
 
-void applyGMFWithAngles(ft_complex * fft_img_src, double* img_dst, double* ang_dst, const int nearest_2p_dim, const int height, const int width, const unsigned int s_scales, const int GMF_kernel_height, const int GMF_kernel_width, const int par_K, ft_complex ** fft_GMF_kernels)
+
+double ** generateFilterbank_space(double * base_kernel, const int par_K, const int nearest_2p_dim, const unsigned int kernel_height, const unsigned int kernel_width)
+{	
+	double ** filter_bank = (double**)malloc(par_K * sizeof(double*));
+
+	/* Orientate the kernels into K directions */
+	/* Transform the zero padded kernels to the frequencies space */
+	double *rotated_kernel = (double*)malloc(kernel_height * kernel_width * sizeof(double));
+	
+	for (unsigned int k = 0; k < par_K; k++)
+	{
+		*(filter_bank+k) = (double*)calloc(nearest_2p_dim * nearest_2p_dim, sizeof(double));
+		rotateBicubic_impl(base_kernel, rotated_kernel, (double)k * 180.0 / (double)par_K, kernel_height, kernel_width);
+		
+		for (unsigned int i = 0; i < kernel_height; i++)
+		{
+			memcpy(*(filter_bank+k) + i * nearest_2p_dim, rotated_kernel + i* kernel_width, kernel_width * sizeof(double));
+		}
+	}
+
+	free(rotated_kernel);
+	return filter_bank;
+}
+
+
+
+void applyFilterAngles(ft_complex * fft_img_src, double* img_dst, double* ang_dst, const int nearest_2p_dim, const int height, const int width, const unsigned int s_scales, const int kernel_height, const int kernel_width, const int par_K, ft_complex ** fft_filter_bank)
 {	
 	/* Offset for the zero padded image */
-	const unsigned int offset_y = GMF_kernel_height / 2;
-	const unsigned int offset_x = GMF_kernel_width / 2;
+	const unsigned int offset_y = kernel_height / 2;
+	const unsigned int offset_x = kernel_width / 2;
 
 	ft_variables(nearest_2p_dim, nearest_2p_dim);
 
@@ -263,10 +303,10 @@ void applyGMFWithAngles(ft_complex * fft_img_src, double* img_dst, double* ang_d
 	/* First Kernel: */
 	for (unsigned int i = 0; i < nearest_2p_dim*(nearest_2p_dim / 2 + 1); i++)
 	{
-		const double real_result = ft_real(*(fft_GMF_kernels)+i) * ft_real(fft_img_src + i) -
-			ft_imag(*(fft_GMF_kernels)+i) * ft_imag(fft_img_src + i);
-		const double imag_result = ft_real(*(fft_GMF_kernels)+i) * ft_imag(fft_img_src + i) +
-			ft_real(fft_img_src + i) * ft_imag(*(fft_GMF_kernels)+i);
+		const double real_result = ft_real(*(fft_filter_bank)+i) * ft_real(fft_img_src + i) -
+			ft_imag(*(fft_filter_bank)+i) * ft_imag(fft_img_src + i);
+		const double imag_result = ft_real(*(fft_filter_bank)+i) * ft_imag(fft_img_src + i) +
+			ft_real(fft_img_src + i) * ft_imag(*(fft_filter_bank)+i);
 
 		ft_real_assign(fft_convolution_GMF_kernel + i) = real_result;
 		ft_imag_assign(fft_convolution_GMF_kernel + i) = imag_result;
@@ -283,11 +323,11 @@ void applyGMFWithAngles(ft_complex * fft_img_src, double* img_dst, double* ang_d
 	{
 		for (unsigned int i = 0; i < nearest_2p_dim*(nearest_2p_dim / 2 + 1); i++)
 		{
-			const double real_result = ft_real(*(fft_GMF_kernels + k) + i) * ft_real(fft_img_src + i) -
-				ft_imag(*(fft_GMF_kernels + k) + i) * ft_imag(fft_img_src + i);
+			const double real_result = ft_real(*(fft_filter_bank + k) + i) * ft_real(fft_img_src + i) -
+				ft_imag(*(fft_filter_bank + k) + i) * ft_imag(fft_img_src + i);
 
-			const double imag_result = ft_real(*(fft_GMF_kernels + k) + i) * ft_imag(fft_img_src + i) + 
-				ft_real(fft_img_src + i) * ft_imag(*(fft_GMF_kernels + k) + i);
+			const double imag_result = ft_real(*(fft_filter_bank + k) + i) * ft_imag(fft_img_src + i) + 
+				ft_real(fft_img_src + i) * ft_imag(*(fft_filter_bank + k) + i);
 
 			ft_real_assign(fft_convolution_GMF_kernel + i) = real_result;
 			ft_imag_assign(fft_convolution_GMF_kernel + i) = imag_result;
@@ -341,11 +381,84 @@ void applyGMFWithAngles(ft_complex * fft_img_src, double* img_dst, double* ang_d
 }
 
 
-void applyGMF(ft_complex * fft_img_src, double* img_dst, const int nearest_2p_dim, const int height, const int width, const unsigned int s_scales, const int GMF_kernel_height, const int GMF_kernel_width, const int par_K, ft_complex ** fft_GMF_kernels)
-{	
+void multiscaleFilterAngles(double * raw_input, double * output, double * angles, const unsigned int n_inputs, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels, double ** template_src)
+{
+	/* Get the nearest 2-based dimension: */
+	const double max_dim = (height > width) ? (double)height : (double)width;
+	const double nearest_power = floor(log2(max_dim)) + 1.0;
+	const unsigned int nearest_2p_dim = (unsigned int)pow(2.0, nearest_power);
+	
+	/* Zero pad the raw input image: */
+	double * zp_img = (double*)calloc(nearest_2p_dim*nearest_2p_dim, sizeof(double));
+	ft_variables(nearest_2p_dim, nearest_2p_dim);
+
+	ft_complex** fft_img_src = allocate_ft_complex_pointers(n_inputs);
+	for (unsigned int i = 0; i < n_inputs; i++)
+	{
+		for (unsigned int y = 0; y < height; y++)
+		{
+			memcpy(zp_img + y*nearest_2p_dim, raw_input + i*height*width + y*width, width * sizeof(double));
+		}
+
+		/* Perform the Fourier Transform: */
+		*(fft_img_src + i) = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2 + 1));
+
+		ft_forward_setup(nearest_2p_dim, nearest_2p_dim, zp_img, *(fft_img_src+i));
+		ft_forward(nearest_2p_dim, nearest_2p_dim, zp_img, *(fft_img_src+i));
+		ft_release_forward;
+	}
+	
+	free(zp_img);
+	
+	// Compute the filter kernels:
+	unsigned int kernel_height, kernel_width;
+	ft_complex ** fft_filter_bank;
+	double * base_kernel = NULL;
+	for (unsigned int s = 0; s < sigma_scales; s++)
+	{
+		if (template_src)
+		{
+			base_kernel = generateTemplate(template_src + par_T*par_L*s, par_T, par_L, &kernel_height, &kernel_width, untrimmed_kernels);
+			fft_filter_bank = generateFilterbank(base_kernel, par_K, nearest_2p_dim, kernel_height, kernel_width);
+			free(base_kernel);
+		}
+		else
+		{
+			base_kernel = generateGMFTemplate(par_T, par_L, *(par_sigma + s), &kernel_height, &kernel_width, untrimmed_kernels);
+			fft_filter_bank = generateFilterbank(base_kernel, par_K, nearest_2p_dim, kernel_height, kernel_width);
+			free(base_kernel);
+		}
+
+		for (unsigned int i = 0; i < n_inputs; i++)
+		{
+			// Apply the single-scale filter:
+			applyFilterAngles(*(fft_img_src + i), output + i*sigma_scales*width*height + s*height*width, angles + i*sigma_scales*width*height + s*height*width, nearest_2p_dim, height, width, sigma_scales, kernel_height, kernel_width, par_K, fft_filter_bank);
+		}
+
+		// Free all memory used for image the filtering:
+		for (unsigned int k = 0; k < par_K; k++)
+		{
+			deallocate_ft_complex(*(fft_filter_bank + k));
+		}
+		deallocate_ft_complex(fft_filter_bank);
+	}
+	
+	// Free all memory used for image the filtering:
+	for (unsigned int i = 0; i < n_inputs; i++)
+	{
+		deallocate_ft_complex(*(fft_img_src + i));
+	}
+	deallocate_ft_complex(fft_img_src);
+	ft_close;
+}
+
+
+
+void applyFilter(ft_complex * fft_img_src, double* img_dst, const int nearest_2p_dim, const int height, const int width, const int kernel_height, const int kernel_width, const int par_K, ft_complex ** fft_filter_bank)
+{
 	/* Offset for the zero padded image */
-	const unsigned int offset_y = GMF_kernel_height / 2;
-	const unsigned int offset_x = GMF_kernel_width / 2;
+	const unsigned int offset_y = kernel_height / 2;
+	const unsigned int offset_x = kernel_width / 2;
 
 	ft_variables(nearest_2p_dim, nearest_2p_dim);
 
@@ -357,10 +470,10 @@ void applyGMF(ft_complex * fft_img_src, double* img_dst, const int nearest_2p_di
 	/* First Kernel: */
 	for (unsigned int i = 0; i < nearest_2p_dim*(nearest_2p_dim / 2 + 1); i++)
 	{
-		const double real_result = ft_real(*(fft_GMF_kernels)+i) * ft_real(fft_img_src + i) -
-			ft_imag(*(fft_GMF_kernels)+i) * ft_imag(fft_img_src + i);
-		const double imag_result = ft_real(*(fft_GMF_kernels)+i) * ft_imag(fft_img_src + i) +
-			ft_real(fft_img_src + i) * ft_imag(*(fft_GMF_kernels)+i);
+		const double real_result = ft_real(*(fft_filter_bank)+i) * ft_real(fft_img_src + i) -
+			ft_imag(*(fft_filter_bank)+i) * ft_imag(fft_img_src + i);
+		const double imag_result = ft_real(*(fft_filter_bank)+i) * ft_imag(fft_img_src + i) +
+			ft_real(fft_img_src + i) * ft_imag(*(fft_filter_bank)+i);
 
 		ft_real_assign(fft_convolution_GMF_kernel + i) = real_result;
 		ft_imag_assign(fft_convolution_GMF_kernel + i) = imag_result;
@@ -372,16 +485,16 @@ void applyGMF(ft_complex * fft_img_src, double* img_dst, const int nearest_2p_di
 	ft_backward_setup(nearest_2p_dim, nearest_2p_dim, fft_convolution_GMF_kernel, resp_to_GMF_kernels_data);
 	ft_backward(nearest_2p_dim, nearest_2p_dim, fft_convolution_GMF_kernel, resp_to_GMF_kernels_data);
 	ft_release_backward;
-		
+	
 	for (unsigned int k = 1; k < par_K; k++)
 	{
 		for (unsigned int i = 0; i < nearest_2p_dim*(nearest_2p_dim / 2 + 1); i++)
 		{
-			const double real_result = ft_real(*(fft_GMF_kernels + k) + i) * ft_real(fft_img_src + i) -
-				ft_imag(*(fft_GMF_kernels + k) + i) * ft_imag(fft_img_src + i);
+			const double real_result = ft_real(*(fft_filter_bank + k) + i) * ft_real(fft_img_src + i) -
+				ft_imag(*(fft_filter_bank + k) + i) * ft_imag(fft_img_src + i);
 
-			const double imag_result = ft_real(*(fft_GMF_kernels + k) + i) * ft_imag(fft_img_src + i) + 
-				ft_real(fft_img_src + i) * ft_imag(*(fft_GMF_kernels + k) + i);
+			const double imag_result = ft_real(*(fft_filter_bank + k) + i) * ft_imag(fft_img_src + i) + 
+				ft_real(fft_img_src + i) * ft_imag(*(fft_filter_bank + k) + i);
 
 			ft_real_assign(fft_convolution_GMF_kernel + i) = real_result;
 			ft_imag_assign(fft_convolution_GMF_kernel + i) = imag_result;
@@ -422,146 +535,15 @@ void applyGMF(ft_complex * fft_img_src, double* img_dst, const int nearest_2p_di
 	{
 		for (unsigned int j = 0; j < width; j++)
 		{
-			*(img_dst + i*width*s_scales + j*s_scales) = *(max_resp + (i + offset_y)*nearest_2p_dim + j + offset_x);
+			*(img_dst + i*width + j) = *(max_resp + (i + offset_y)*nearest_2p_dim + j + offset_x);
 		}
 	}
 	
 	free(max_resp);
 }
 
-void singleScaleGMFilter(double * raw_input, char * mask, double * output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels)
-{
-	/* Get the nearest 2-based dimension: */
-	const double max_dim = (height > width) ? (double)height : (double)width;
-	const double nearest_power = floor(log2(max_dim)) + 1.0;
-	const unsigned int nearest_2p_dim = (unsigned int)pow(2.0, nearest_power);
-	
-	/* Zero pad the raw input image: */
-	double * zp_img = (double*)calloc(nearest_2p_dim*nearest_2p_dim, sizeof(double));
-	for (unsigned int y = 0; y < height; y++)
-	{
-        memcpy(zp_img + y*nearest_2p_dim, raw_input + y*width, width * sizeof(double));
-	}
-		
-	ft_variables(nearest_2p_dim, nearest_2p_dim);
 
-	ft_complex* fft_img_src = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2 + 1));
-	
-	/* Perform the Fourier Transform: */
-	ft_forward_setup(nearest_2p_dim, nearest_2p_dim, zp_img, fft_img_src);
-	ft_forward(nearest_2p_dim, nearest_2p_dim, zp_img, fft_img_src);
-	ft_release_forward;
-	
-	free(zp_img);
-	
-	// Compute the filter kernels:
-	ft_complex** fft_GMF_kernels = allocate_ft_complex_pointers(par_K);
-	for (unsigned int k = 0; k < par_K; k++)
-	{
-		*(fft_GMF_kernels+k) = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2+1));
-	}
-	
-	unsigned int GMF_kernel_height, GMF_kernel_width;
-	if (untrimmed_kernels)
-	{
-		generateGMFTemplateUntrimmed_impl(fft_GMF_kernels, par_T, par_L, par_sigma, par_K, nearest_2p_dim, &GMF_kernel_height, &GMF_kernel_width);
-	}
-	else
-	{
-		generateGMFTemplate_impl(fft_GMF_kernels, par_T, par_L, par_sigma, par_K, nearest_2p_dim, &GMF_kernel_height, &GMF_kernel_width);
-	}
-	
-	// Apply the single-scale filter:
-	applyGMF(fft_img_src, output, nearest_2p_dim, height, width, 1, GMF_kernel_height, GMF_kernel_width, par_K, fft_GMF_kernels);
-
-	// Apply the mask, the mask(x, y) must be {0, 1}:
-	char * m_ptr = mask;
-	double *o_ptr = output;
-        
-	for (unsigned int xy = 0; xy < height*width; xy++, m_ptr++, o_ptr++)
-	{
-		*o_ptr = *o_ptr * (double)*m_ptr;
-	}
-	
-	// Free all memory used for image the filtering:
-	for (unsigned int k = 0; k < par_K; k++)
-	{
-		deallocate_ft_complex(*(fft_GMF_kernels + k));
-	}
-	deallocate_ft_complex(fft_GMF_kernels);
-	deallocate_ft_complex(fft_img_src);	
-	ft_close;
-}
-
-
-void singleScaleGMFilterWithAngles(double * raw_input, char * mask, double * output, double * angles_output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels)
-{
-	/* Get the nearest 2-based dimension: */
-	const double max_dim = (height > width) ? (double)height : (double)width;
-	const double nearest_power = floor(log2(max_dim)) + 1.0;
-	const unsigned int nearest_2p_dim = (unsigned int)pow(2.0, nearest_power);
-	
-	/* Zero pad the raw input image: */
-	double * zp_img = (double*)calloc(nearest_2p_dim*nearest_2p_dim, sizeof(double));
-	for (unsigned int y = 0; y < height; y++)
-	{
-        memcpy(zp_img + y*nearest_2p_dim, raw_input + y*width, width * sizeof(double));
-    }
-    
-	ft_variables(nearest_2p_dim, nearest_2p_dim);
-
-	ft_complex* fft_img_src = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2 + 1));
-	
-	/* Perform the Fourier Transform: */
-	ft_forward_setup(nearest_2p_dim, nearest_2p_dim, zp_img, fft_img_src);
-	ft_forward(nearest_2p_dim, nearest_2p_dim, zp_img, fft_img_src);
-	ft_release_forward;
-	
-	free(zp_img);
-	
-	// Compute the filter kernels:
-	ft_complex** fft_GMF_kernels = allocate_ft_complex_pointers(par_K);
-	for (unsigned int k = 0; k < par_K; k++)
-	{
-		*(fft_GMF_kernels+k) = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2+1));
-	}
-	
-	unsigned int GMF_kernel_height, GMF_kernel_width;
-	if (untrimmed_kernels)
-	{
-		generateGMFTemplateUntrimmed_impl(fft_GMF_kernels, par_T, par_L, par_sigma, par_K, nearest_2p_dim, &GMF_kernel_height, &GMF_kernel_width);
-	}
-	else
-	{
-		generateGMFTemplate_impl(fft_GMF_kernels, par_T, par_L, par_sigma, par_K, nearest_2p_dim, &GMF_kernel_height, &GMF_kernel_width);
-	}
-	
-	// Apply the single-scale filter:
-	applyGMFWithAngles(fft_img_src, output, angles_output, nearest_2p_dim, height, width, 1, GMF_kernel_height, GMF_kernel_width, par_K, fft_GMF_kernels);
-
-	// Apply the mask, the mask(x, y) must be {0, 1}:
-	char * m_ptr = mask;
-	double *o_ptr = output;
-	double *a_ptr = angles_output;
-    
-	for (unsigned int xy = 0; xy < height*width; xy++, m_ptr++, o_ptr++, a_ptr++)
-	{
-		*o_ptr = *o_ptr * (double)*m_ptr;
-		*a_ptr = *a_ptr * (double)*m_ptr;
-	}
-	
-	// Free all memory used for image the filtering:
-	for (unsigned int k = 0; k < par_K; k++)
-	{
-		deallocate_ft_complex(*(fft_GMF_kernels + k));
-	}
-	deallocate_ft_complex(fft_GMF_kernels);
-	deallocate_ft_complex(fft_img_src);	
-	ft_close;
-}
-
-
-void singleScaleGMFilter_multipleinputs(double * raw_input, const unsigned int n_inputs, char * mask, double * output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels)
+void multiscaleFilter(double * raw_input, double * output, const unsigned int n_inputs, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels, double ** template_src)
 {
 	/* Get the nearest 2-based dimension: */
 	const double max_dim = (height > width) ? (double)height : (double)width;
@@ -571,431 +553,71 @@ void singleScaleGMFilter_multipleinputs(double * raw_input, const unsigned int n
 	/* Zero pad the raw input image: */
 	double * zp_img = (double*)calloc(nearest_2p_dim*nearest_2p_dim, sizeof(double));
 	ft_variables(nearest_2p_dim, nearest_2p_dim);
-	ft_complex* fft_img_src = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2 + 1));
-	
-	// Compute the filter kernels:
-	ft_complex** fft_GMF_kernels = allocate_ft_complex_pointers(par_K);
-	for (unsigned int k = 0; k < par_K; k++)
-	{
-		*(fft_GMF_kernels+k) = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2+1));
-	}
-	
-	unsigned int GMF_kernel_height, GMF_kernel_width;
-	if (untrimmed_kernels)
-	{
-		generateGMFTemplateUntrimmed_impl(fft_GMF_kernels, par_T, par_L, par_sigma, par_K, nearest_2p_dim, &GMF_kernel_height, &GMF_kernel_width);
-	}
-	else
-	{
-		generateGMFTemplate_impl(fft_GMF_kernels, par_T, par_L, par_sigma, par_K, nearest_2p_dim, &GMF_kernel_height, &GMF_kernel_width);
-	}
-	
-	// Apply the single-scale filter:
+
+	ft_complex** fft_img_src = allocate_ft_complex_pointers(n_inputs);
 	for (unsigned int i = 0; i < n_inputs; i++)
 	{
 		for (unsigned int y = 0; y < height; y++)
 		{
-            memcpy(zp_img + y*nearest_2p_dim, raw_input + i*width*height + y*width, width * sizeof(double));
+			memcpy(zp_img + y*nearest_2p_dim, raw_input + i*width*height + y*width, width * sizeof(double));
 		}
-			
-		/* Perform the Fourier Transform: */
-		ft_forward_setup(nearest_2p_dim, nearest_2p_dim, zp_img, fft_img_src);
-		ft_forward(nearest_2p_dim, nearest_2p_dim, zp_img, fft_img_src);
-		ft_release_forward;
-		
-		applyGMF(fft_img_src, output + i*height*width, nearest_2p_dim, height, width, 1, GMF_kernel_height, GMF_kernel_width, par_K, fft_GMF_kernels);
 
-		// Apply the mask, the mask(x, y) must be {0, 1}:
-		char * m_ptr = mask + i*height*width;
-		double *o_ptr = output + i*height*width;
-		
-		for (unsigned int xy = 0; xy < height*width; xy++, m_ptr++, o_ptr++)
-		{
-			*o_ptr = *o_ptr * (double)*m_ptr;
-		}
+		/* Perform the Fourier Transform: */
+		*(fft_img_src + i) = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2 + 1));
+
+		ft_forward_setup(nearest_2p_dim, nearest_2p_dim, zp_img, *(fft_img_src+i));
+		ft_forward(nearest_2p_dim, nearest_2p_dim, zp_img, *(fft_img_src+i));
+		ft_release_forward;
 	}
 	
 	free(zp_img);
 	
-	// Free all memory used for image the filtering:
-	for (unsigned int k = 0; k < par_K; k++)
-	{
-		deallocate_ft_complex(*(fft_GMF_kernels + k));
-	}
-	deallocate_ft_complex(fft_GMF_kernels);
-	deallocate_ft_complex(fft_img_src);	
-	ft_close;
-}
-
-
-void singleScaleGMFilterWithAngles_multipleinputs(double * raw_input, const unsigned int n_inputs, char * mask, double * output, double * angles_output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, const double par_sigma, const unsigned int par_K, const unsigned char untrimmed_kernels)
-{
-	/* Get the nearest 2-based dimension: */
-	const double max_dim = (height > width) ? (double)height : (double)width;
-	const double nearest_power = floor(log2(max_dim)) + 1.0;
-	const unsigned int nearest_2p_dim = (unsigned int)pow(2.0, nearest_power);
-	
-	/* Zero pad the raw input image: */
-	double * zp_img = (double*)calloc(nearest_2p_dim*nearest_2p_dim, sizeof(double));
-	ft_variables(nearest_2p_dim, nearest_2p_dim);
-	ft_complex* fft_img_src = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2 + 1));
-	
 	// Compute the filter kernels:
-	ft_complex** fft_GMF_kernels = allocate_ft_complex_pointers(par_K);
-	for (unsigned int k = 0; k < par_K; k++)
+	unsigned int kernel_height, kernel_width;
+	ft_complex ** fft_filter_bank;
+	double * base_kernel = NULL;
+	for (unsigned int s = 0; s < sigma_scales; s++)
 	{
-		*(fft_GMF_kernels+k) = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2+1));
+		if (template_src)
+		{
+			base_kernel = generateTemplate(template_src + s*par_T*par_L, par_T, par_L, &kernel_height, &kernel_width, untrimmed_kernels);
+			fft_filter_bank = generateFilterbank(base_kernel, par_K, nearest_2p_dim, kernel_height, kernel_width);
+			free(base_kernel);
+		}
+		else
+		{
+			base_kernel = generateGMFTemplate(par_T, par_L, *(par_sigma + s), &kernel_height, &kernel_width, untrimmed_kernels);
+			fft_filter_bank = generateFilterbank(base_kernel, par_K, nearest_2p_dim, kernel_height, kernel_width);
+			free(base_kernel);
+		}
+
+		for (unsigned int i = 0; i < n_inputs; i++)
+		{
+			// Apply the single-scale filter:
+			applyFilter(*(fft_img_src + i), output + i*sigma_scales*width*height + s*height*width, nearest_2p_dim, height, width, kernel_height, kernel_width, par_K, fft_filter_bank);
+		}
+
+		// Free all memory used for image filtering:
+		for (unsigned int k = 0; k < par_K; k++)
+		{
+			deallocate_ft_complex(*(fft_filter_bank + k));
+		}
+		deallocate_ft_complex(fft_filter_bank);
 	}
 	
-	unsigned int GMF_kernel_height, GMF_kernel_width;
-	if (untrimmed_kernels)
-	{
-		generateGMFTemplateUntrimmed_impl(fft_GMF_kernels, par_T, par_L, par_sigma, par_K, nearest_2p_dim, &GMF_kernel_height, &GMF_kernel_width);
-	}
-	else
-	{
-		generateGMFTemplate_impl(fft_GMF_kernels, par_T, par_L, par_sigma, par_K, nearest_2p_dim, &GMF_kernel_height, &GMF_kernel_width);
-	}
-	
-	// Apply the single-scale filter:
+	// Free all memory used for image filtering:
 	for (unsigned int i = 0; i < n_inputs; i++)
 	{
-		for (unsigned int y = 0; y < height; y++)
-		{
-            memcpy(zp_img + y*nearest_2p_dim, raw_input + i*width*height + y*width, width * sizeof(double));
-		}
-			
-		/* Perform the Fourier Transform: */
-		ft_forward_setup(nearest_2p_dim, nearest_2p_dim, zp_img, fft_img_src);
-		ft_forward(nearest_2p_dim, nearest_2p_dim, zp_img, fft_img_src);
-		ft_release_forward;
-		
-		applyGMFWithAngles(fft_img_src, output + i*height*width, angles_output + i*height*width, nearest_2p_dim, height, width, 1, GMF_kernel_height, GMF_kernel_width, par_K, fft_GMF_kernels);
-
-		// Apply the mask, the mask(x, y) must be {0, 1}:
-		char * m_ptr = mask + i*height*width;
-		double *o_ptr = output + i*height*width;
-		double *a_ptr = angles_output + i*height*width;
-		
-		for (unsigned int xy = 0; xy < height*width; xy++, m_ptr++, o_ptr++, a_ptr++)
-		{
-			*o_ptr = *o_ptr * (double)*m_ptr;
-			*a_ptr = *a_ptr * (double)*m_ptr;
-		}
+		deallocate_ft_complex(*(fft_img_src + i));
 	}
-	
-	free(zp_img);
-	
-	// Free all memory used for image the filtering:
-	for (unsigned int k = 0; k < par_K; k++)
-	{
-		deallocate_ft_complex(*(fft_GMF_kernels + k));
-	}
-	deallocate_ft_complex(fft_GMF_kernels);
-	deallocate_ft_complex(fft_img_src);	
-	ft_close;
-}
-
-
-void multiscaleGMFilter(double * raw_input, char * mask, double * output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels)
-{
-	/* Get the nearest 2-based dimension: */
-	const double max_dim = (height > width) ? (double)height : (double)width;
-	const double nearest_power = floor(log2(max_dim)) + 1.0;
-	const unsigned int nearest_2p_dim = (unsigned int)pow(2.0, nearest_power);
-	
-	/* Zero pad the raw input image: */
-	double * zp_img = (double*)calloc(nearest_2p_dim*nearest_2p_dim, sizeof(double));
-	for (unsigned int y = 0; y < height; y++)
-	{
-        memcpy(zp_img + y*nearest_2p_dim, raw_input + y*width, width * sizeof(double));
-	}
-	
-	ft_variables(nearest_2p_dim, nearest_2p_dim);
-
-	ft_complex* fft_img_src = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2 + 1));
-	
-	/* Perform the Fourier Transform: */
-	ft_forward_setup(nearest_2p_dim, nearest_2p_dim, zp_img, fft_img_src);
-	ft_forward(nearest_2p_dim, nearest_2p_dim, zp_img, fft_img_src);
-	ft_release_forward;
-	
-	free(zp_img);
-	
-	// Compute the filter kernels:
-	unsigned int GMF_kernel_height, GMF_kernel_width;
-	ft_complex** fft_GMF_kernels = allocate_ft_complex_pointers(par_K);
-	for (unsigned int k = 0; k < par_K; k++)
-	{
-		*(fft_GMF_kernels + k) = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2+1));
-	}
-	
-	for (unsigned int s = 0; s < sigma_scales; s++)
-	{		
-		if (untrimmed_kernels)
-		{
-			generateGMFTemplateUntrimmed_impl(fft_GMF_kernels, par_T, par_L, *(par_sigma + s), par_K, nearest_2p_dim, &GMF_kernel_height, &GMF_kernel_width);
-		}
-		else
-		{
-			generateGMFTemplate_impl(fft_GMF_kernels, par_T, par_L, *(par_sigma + s), par_K, nearest_2p_dim, &GMF_kernel_height, &GMF_kernel_width);
-		}
-	
-		// Apply the single-scale filter:
-		applyGMF(fft_img_src, output + s, nearest_2p_dim, height, width, sigma_scales, GMF_kernel_height, GMF_kernel_width, par_K, fft_GMF_kernels);
-
-		// Apply the mask, the mask(x, y) must be {0, 1}:
-		char * m_ptr = mask;
-		double *o_ptr = output + s;
-		
-		for (unsigned int xy = 0; xy < height*width; xy++, m_ptr++, o_ptr+=sigma_scales)
-		{
-			*o_ptr = *o_ptr * (double)*m_ptr;
-		}
-	}
-	
-	// Free all memory used for image the filtering:
-	for (unsigned int k = 0; k < par_K; k++)
-	{
-		deallocate_ft_complex(*(fft_GMF_kernels + k));
-	}
-	deallocate_ft_complex(fft_GMF_kernels);
-	deallocate_ft_complex(fft_img_src);	
-	ft_close;
-}
-
-
-void multiscaleGMFilterWithAngles(double * raw_input, char * mask, double * output, double * angles_output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels)
-{
-	/* Get the nearest 2-based dimension: */
-	const double max_dim = (height > width) ? (double)height : (double)width;
-	const double nearest_power = floor(log2(max_dim)) + 1.0;
-	const unsigned int nearest_2p_dim = (unsigned int)pow(2.0, nearest_power);
-	
-	/* Zero pad the raw input image: */
-	double * zp_img = (double*)calloc(nearest_2p_dim*nearest_2p_dim, sizeof(double));
-	for (unsigned int y = 0; y < height; y++)
-	{
-        memcpy(zp_img + y*nearest_2p_dim, raw_input + y*width, width * sizeof(double));
-	}
-	
-	ft_variables(nearest_2p_dim, nearest_2p_dim);
-
-	ft_complex* fft_img_src = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2 + 1));
-	
-	/* Perform the Fourier Transform: */
-	ft_forward_setup(nearest_2p_dim, nearest_2p_dim, zp_img, fft_img_src);
-	ft_forward(nearest_2p_dim, nearest_2p_dim, zp_img, fft_img_src);
-	ft_release_forward;
-	
-	free(zp_img);
-	
-	// Compute the filter kernels:
-	unsigned int GMF_kernel_height, GMF_kernel_width;
-	ft_complex** fft_GMF_kernels = allocate_ft_complex_pointers(par_K);
-	for (unsigned int k = 0; k < par_K; k++)
-	{
-		*(fft_GMF_kernels + k) = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2+1));
-	}
-	
-	for (unsigned int s = 0; s < sigma_scales; s++)
-	{
-		
-		if (untrimmed_kernels)
-		{
-			generateGMFTemplateUntrimmed_impl(fft_GMF_kernels, par_T, par_L, *(par_sigma + s), par_K, nearest_2p_dim, &GMF_kernel_height, &GMF_kernel_width);
-		}
-		else
-		{
-			generateGMFTemplate_impl(fft_GMF_kernels, par_T, par_L, *(par_sigma + s), par_K, nearest_2p_dim, &GMF_kernel_height, &GMF_kernel_width);
-		}
-	
-		// Apply the single-scale filter:
-		applyGMFWithAngles(fft_img_src, output + s, angles_output + s, nearest_2p_dim, height, width, sigma_scales, GMF_kernel_height, GMF_kernel_width, par_K, fft_GMF_kernels);
-
-		// Apply the mask, the mask(x, y) must be {0, 1}:
-		char * m_ptr = mask;
-		double *o_ptr = output + s;
-		double *a_ptr = angles_output + s;
-		
-		for (unsigned int xy = 0; xy < height*width; xy++, m_ptr++, o_ptr+=sigma_scales, a_ptr+=sigma_scales)
-		{
-			*o_ptr = *o_ptr * (double)*m_ptr;
-			*a_ptr = *a_ptr * (double)*m_ptr;
-		}
-	}
-	
-	// Free all memory used for image the filtering:
-	for (unsigned int k = 0; k < par_K; k++)
-	{
-		deallocate_ft_complex(*(fft_GMF_kernels + k));
-	}
-	deallocate_ft_complex(fft_GMF_kernels);
-	deallocate_ft_complex(fft_img_src);	
-	ft_close;
-}
-
-
-void multiscaleGMFilter_multipleinputs(double * raw_input, const unsigned int n_inputs, char * mask, double * output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels)
-{
-	/* Get the nearest 2-based dimension: */
-	const double max_dim = (height > width) ? (double)height : (double)width;
-	const double nearest_power = floor(log2(max_dim)) + 1.0;
-	const unsigned int nearest_2p_dim = (unsigned int)pow(2.0, nearest_power);
-	
-	/* Zero pad the raw input image: */
-	double * zp_img = (double*)calloc(nearest_2p_dim*nearest_2p_dim, sizeof(double));
-	ft_variables(nearest_2p_dim, nearest_2p_dim);
-	ft_complex* fft_img_src = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2 + 1));
-	
-	// Compute the filter kernels:
-	unsigned int GMF_kernel_height, GMF_kernel_width;
-	ft_complex*** fft_GMF_kernels = allocate_ft_complex_pointers_of_pointers(sigma_scales);
-	for (unsigned int s = 0; s < sigma_scales; s++)
-	{
-		*(fft_GMF_kernels + s) = allocate_ft_complex_pointers(par_K);
-		for (unsigned int k = 0; k < par_K; k++)
-		{
-			*(*(fft_GMF_kernels+s)+k) = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2+1));
-		}
-	
-		if (untrimmed_kernels)
-		{
-			generateGMFTemplateUntrimmed_impl(*(fft_GMF_kernels + s), par_T, par_L, *(par_sigma + s), par_K, nearest_2p_dim, &GMF_kernel_height, &GMF_kernel_width);
-		}
-		else
-		{
-			generateGMFTemplate_impl(*(fft_GMF_kernels + s), par_T, par_L, *(par_sigma + s), par_K, nearest_2p_dim, &GMF_kernel_height, &GMF_kernel_width);
-		}
-	}
-	
-	// Apply the single-scale filter:
-	for (unsigned int i = 0; i < n_inputs; i++)
-	{
-		for (unsigned int y = 0; y < height; y++)
-		{
-            memcpy(zp_img + y*nearest_2p_dim, raw_input + i*width*height + y*width, width * sizeof(double));
-		}
-			
-		/* Perform the Fourier Transform: */
-		ft_forward_setup(nearest_2p_dim, nearest_2p_dim, zp_img, fft_img_src);
-		ft_forward(nearest_2p_dim, nearest_2p_dim, zp_img, fft_img_src);
-		ft_release_forward;
-	
-		for (unsigned int s = 0; s < sigma_scales; s++)
-		{
-			applyGMF(fft_img_src, output + s + i*sigma_scales*height*width, nearest_2p_dim, height, width, sigma_scales, GMF_kernel_height, GMF_kernel_width, par_K, *(fft_GMF_kernels + s));
-
-			// Apply the mask, the mask(x, y) must be {0, 1}:
-			char * m_ptr = mask + i*height*width;
-			double *o_ptr = output + s + i*sigma_scales*height*width;
-		
-			for (unsigned int xy = 0; xy < height*width; xy++, m_ptr++, o_ptr+=sigma_scales)
-			{
-				*o_ptr = *o_ptr * (double)*m_ptr;
-			}
-		}
-	}
-	
-	free(zp_img);
-	
-	// Free all memory used for image the filtering:
-	for (unsigned int s = 0; s < sigma_scales; s++)
-	{
-		for (unsigned int k = 0; k < par_K; k++)
-		{
-			deallocate_ft_complex(*(*(fft_GMF_kernels + s) + k));
-		}
-		deallocate_ft_complex(*(fft_GMF_kernels + s));
-	}
-	deallocate_ft_complex(fft_GMF_kernels);
-	deallocate_ft_complex(fft_img_src);	
-	ft_close;
-}
-
-
-void multiscaleGMFilterWithAngles_multipleinputs(double * raw_input, unsigned int n_inputs, char * mask, double * output, double * angles_output, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels)
-{
-	/* Get the nearest 2-based dimension: */
-	const double max_dim = (height > width) ? (double)height : (double)width;
-	const double nearest_power = floor(log2(max_dim)) + 1.0;
-	const unsigned int nearest_2p_dim = (unsigned int)pow(2.0, nearest_power);
-	
-	/* Zero pad the raw input image: */
-	double * zp_img = (double*)calloc(nearest_2p_dim*nearest_2p_dim, sizeof(double));
-	ft_variables(nearest_2p_dim, nearest_2p_dim);
-	ft_complex* fft_img_src = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2 + 1));
-	
-	// Compute the filter kernels:
-	unsigned int GMF_kernel_height, GMF_kernel_width;
-	ft_complex*** fft_GMF_kernels = allocate_ft_complex_pointers_of_pointers(sigma_scales);
-	for (unsigned int s = 0; s < sigma_scales; s++)
-	{
-		*(fft_GMF_kernels + s) = allocate_ft_complex_pointers(par_K);
-		for (unsigned int k = 0; k < par_K; k++)
-		{
-			*(*(fft_GMF_kernels+s)+k) = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2+1));
-		}
-	
-		if (untrimmed_kernels)
-		{
-			generateGMFTemplateUntrimmed_impl(*(fft_GMF_kernels + s), par_T, par_L, *(par_sigma + s), par_K, nearest_2p_dim, &GMF_kernel_height, &GMF_kernel_width);
-		}
-		else
-		{
-			generateGMFTemplate_impl(*(fft_GMF_kernels + s), par_T, par_L, *(par_sigma + s), par_K, nearest_2p_dim, &GMF_kernel_height, &GMF_kernel_width);
-		}
-	}
-	
-	// Apply the single-scale filter:
-	for (unsigned int i = 0; i < n_inputs; i++)
-	{
-		for (unsigned int y = 0; y < height; y++)
-		{
-            memcpy(zp_img + y*nearest_2p_dim, raw_input + i*width*height + y*width, width * sizeof(double));
-		}
-			
-		/* Perform the Fourier Transform: */
-		ft_forward_setup(nearest_2p_dim, nearest_2p_dim, zp_img, fft_img_src);
-		ft_forward(nearest_2p_dim, nearest_2p_dim, zp_img, fft_img_src);
-		ft_release_forward;
-	
-		for (unsigned int s = 0; s < sigma_scales; s++)
-		{
-			applyGMFWithAngles(fft_img_src, output + s + i*sigma_scales*height*width, angles_output + s + i*sigma_scales*height*width, nearest_2p_dim, height, width, sigma_scales, GMF_kernel_height, GMF_kernel_width, par_K, *(fft_GMF_kernels + s));
-
-			// Apply the mask, the mask(x, y) must be {0, 1}:
-			char * m_ptr = mask + i*height*width;
-			double *o_ptr = output + s + i*sigma_scales*height*width;
-			double *a_ptr = angles_output + s + i*sigma_scales*height*width;
-		
-			for (unsigned int xy = 0; xy < height*width; xy++, m_ptr++, o_ptr+=sigma_scales, a_ptr+=sigma_scales)
-			{
-				*o_ptr = *o_ptr * (double)*m_ptr;
-				*a_ptr = *a_ptr * (double)*m_ptr;
-			}
-		}
-	}
-	
-	free(zp_img);
-	
-	// Free all memory used for image the filtering:
-	for (unsigned int s = 0; s < sigma_scales; s++)
-	{
-		for (unsigned int k = 0; k < par_K; k++)
-		{
-			deallocate_ft_complex(*(*(fft_GMF_kernels + s) + k));
-		}
-		deallocate_ft_complex(*(fft_GMF_kernels + s));
-	}
-	deallocate_ft_complex(fft_GMF_kernels);
-	deallocate_ft_complex(fft_img_src);	
+	deallocate_ft_complex(fft_img_src);
 	ft_close;
 }
 
 
 
 #ifdef BUILDING_PYTHON_MODULE
+//static PyObject* gmfFilter(PyObject *self, PyObject *args, PyObject *kwargs)
 static PyObject* gmfFilter(PyObject *self, PyObject *args)
 {
     PyArrayObject *raw_input;
@@ -1004,123 +626,23 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     npy_intp height, width;
     
     PyArrayObject *multiscale_par_sigma = NULL;
-    char * par_sigma_data = NULL;
-    npy_intp par_sigma_stride, par_sigma_scales = 1;
-    
-    PyArrayObject *mask = NULL;
-    char * mask_data = NULL;
-    npy_intp mask_stride;
+    npy_intp par_sigma_stride, par_sigma = 1;
     
     unsigned int par_T;
     unsigned int par_L;
     unsigned int par_K;
-    
-    DEBMSG("Filtering by Gaussian matched filters");
-    
-    if (!PyArg_ParseTuple(args, "O!IIO!IO!", &PyArray_Type, &raw_input, &par_T, &par_L, &PyArray_Type, &multiscale_par_sigma, &par_K, &PyArray_Type, &mask))
+   
+	unsigned char untrimmed_kernels = 0;
+    PyArrayObject *template_src = NULL;
+
+	/** untrimmed kernel indicator and template src is an optional argument, wich is specified after '|' */
+    if (!PyArg_ParseTuple(args, "O!IIO!I|bO!", &PyArray_Type, &raw_input, &par_T, &par_L, &PyArray_Type, &multiscale_par_sigma, &par_K, &untrimmed_kernels, &PyArray_Type, &template_src))
     {
         return NULL;
     }
     
-    par_sigma_data = ((PyArrayObject*)multiscale_par_sigma)->data;
-    par_sigma_scales = ((PyArrayObject*)multiscale_par_sigma)->dimensions[0];
-    par_sigma_stride = ((PyArrayObject*)multiscale_par_sigma)->strides[((PyArrayObject*)multiscale_par_sigma)->nd-1];
-    
-    DEBNUMMSG("T = %i", par_T);
-    DEBNUMMSG(", L = %i", par_L);
-    DEBNUMMSG(", K = %i", par_K);
-    DEBNUMMSG(", n sigma scales = %i\n", (int*)par_sigma_scales);
-    
-    if (((PyArrayObject*)raw_input)->nd > 2)
-    {
-        n_imgs = ((PyArrayObject*)raw_input)->dimensions[0];
-        height = ((PyArrayObject*)raw_input)->dimensions[1];
-        width = ((PyArrayObject*)raw_input)->dimensions[2];
-    }
-    else
-    {
-        n_imgs = 1;
-        height = ((PyArrayObject*)raw_input)->dimensions[0];
-        width = ((PyArrayObject*)raw_input)->dimensions[1];
-    }
-    
-    raw_input_data  = ((PyArrayObject*)raw_input)->data;
-    raw_input_stride = ((PyArrayObject*)raw_input)->strides[((PyArrayObject*)raw_input)->nd - 1];
-    
-	mask_data = ((PyArrayObject*)mask)->data;
-	mask_stride = ((PyArrayObject*)mask)->strides[((PyArrayObject*)mask)->nd - 1];
- 
-    
-    PyObject * gmf_response = NULL;
-    if (n_imgs > 1 && par_sigma_scales > 1) 
-    {
-		DEBMSG("Multiple inputs and multiple scales\n");
-        npy_intp gmf_response_shape[] = { n_imgs, height, width, par_sigma_scales };
-        gmf_response = PyArray_SimpleNew(4, &gmf_response_shape[0], NPY_DOUBLE);
-    }
-    else if (n_imgs > 1 && par_sigma_scales == 1)
-    {
-        npy_intp gmf_response_shape[] = { n_imgs, height, width };        
-        gmf_response = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
-    }
-    else if (n_imgs == 1 && par_sigma_scales > 1)
-    {
-        npy_intp gmf_response_shape[] = { height, width, par_sigma_scales };      
-        gmf_response = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
-    }
-    else
-    {
-        npy_intp gmf_response_shape[] = { height, width };        
-        gmf_response = PyArray_SimpleNew(2, &gmf_response_shape[0], NPY_DOUBLE);
-    }
-    
-    char * gmf_response_data = ((PyArrayObject*)gmf_response)->data;
-    npy_intp gmf_response_stride = ((PyArrayObject*)gmf_response)->strides[((PyArrayObject*)gmf_response)->nd-1];
-    
-    if (n_imgs > 1)
-    {
-        DEBMSG("Multiscale Gaussian matched filtering over multiple images\n");
-        multiscaleGMFilter_multipleinputs((double*)raw_input_data, n_imgs, mask_data, (double*)gmf_response_data, height, width, par_T, par_L, (double*)par_sigma_data, par_sigma_scales, par_K, 0);
-    }
-    else
-    {
-        DEBMSG("Multiscale Gaussian matched filtering over a single image\n");
-        multiscaleGMFilter((double*)raw_input_data, mask_data, (double*)gmf_response_data, height, width, par_T, par_L, (double*)par_sigma_data, par_sigma_scales, par_K, 0);
-    }
-      
-    return gmf_response;
-}
-#endif
-
-
-
-#ifdef BUILDING_PYTHON_MODULE
-static PyObject* gmfFilterWithAngles(PyObject *self, PyObject *args)
-{
-    PyArrayObject *raw_input;
-    char *raw_input_data = NULL;
-    npy_intp raw_input_stride, n_imgs = 1;
-    npy_intp height, width;
-    
-    PyArrayObject *multiscale_par_sigma = NULL;
-    char * par_sigma_data = NULL;
-    npy_intp par_sigma_stride, par_sigma_scales = 1;
-    
-    PyArrayObject *mask = NULL;
-    char * mask_data = NULL;
-    npy_intp mask_stride;
-    
-    unsigned int par_T;
-    unsigned int par_L;
-    unsigned int par_K;
-    
-    if (!PyArg_ParseTuple(args, "O!IIO!IO!", &PyArray_Type, &raw_input, &par_T, &par_L, &PyArray_Type, &multiscale_par_sigma, &par_K, &PyArray_Type, &mask))
-    {
-        return NULL;
-    }
-    
-    par_sigma_data = ((PyArrayObject*)multiscale_par_sigma)->data;
-    par_sigma_scales = ((PyArrayObject*)multiscale_par_sigma)->dimensions[0];
+    double * par_sigma_data = (double*)((PyArrayObject*)multiscale_par_sigma)->data;
+    par_sigma = ((PyArrayObject*)multiscale_par_sigma)->dimensions[0];
     par_sigma_stride = ((PyArrayObject*)multiscale_par_sigma)->strides[((PyArrayObject*)multiscale_par_sigma)->nd-1];
         
     if (((PyArrayObject*)raw_input)->nd > 2)
@@ -1136,67 +658,84 @@ static PyObject* gmfFilterWithAngles(PyObject *self, PyObject *args)
         width = ((PyArrayObject*)raw_input)->dimensions[1];
     }
     
-    raw_input_data  = ((PyArrayObject*)raw_input)->data;
+    raw_input_data  = (double*)((PyArrayObject*)raw_input)->data;
     raw_input_stride = ((PyArrayObject*)raw_input)->strides[((PyArrayObject*)raw_input)->nd - 1];
     
-    mask_data = ((PyArrayObject*)mask)->data;
-    mask_stride = ((PyArrayObject*)mask)->strides[((PyArrayObject*)mask)->nd - 1];
+    npy_intp gmf_response_shape[] = { n_imgs, par_sigma, height, width };      
+    PyObject * gmf_response = PyArray_SimpleNew(4, &gmf_response_shape[0], NPY_DOUBLE);
     
-    PyObject * gmf_response = NULL;
-    PyObject * gmf_response_angles = NULL;
-    if (n_imgs > 1 && par_sigma_scales > 1) 
-    {
-        npy_intp gmf_response_shape[] = { n_imgs, height, width, par_sigma_scales };
-        gmf_response = PyArray_SimpleNew(4, &gmf_response_shape[0], NPY_DOUBLE);
-        gmf_response_angles = PyArray_SimpleNew(4, &gmf_response_shape[0], NPY_DOUBLE);
-    }
-    else if (n_imgs > 1 && par_sigma_scales == 1)
-    {
-        npy_intp gmf_response_shape[] = { n_imgs, height, width };
-        gmf_response = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
-        gmf_response_angles = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
-    }
-    else if (n_imgs == 1 && par_sigma_scales > 1)
-    {
-        npy_intp gmf_response_shape[] = { height, width, par_sigma_scales };
-        gmf_response = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
-        gmf_response_angles = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
-    }
-    else
-    {
-        npy_intp gmf_response_shape[] = { height, width };
-        gmf_response = PyArray_SimpleNew(2, &gmf_response_shape[0], NPY_DOUBLE);
-        gmf_response_angles = PyArray_SimpleNew(2, &gmf_response_shape[0], NPY_DOUBLE);
-    }
+    double * gmf_response_data = (double*)((PyArrayObject*)gmf_response)->data;
+	if (template_src)
+	{
+    	multiscaleFilter(raw_input_data, gmf_response_data, n_imgs, height, width, par_T, par_L, par_sigma_data, par_sigma, par_K, untrimmed_kernels, (double*)template_src->data);
+	}
+	else
+	{
+    	multiscaleFilter(raw_input_data, gmf_response_data, n_imgs, height, width, par_T, par_L, par_sigma_data, par_sigma, par_K, untrimmed_kernels, NULL);
+	}
     
-    char * gmf_response_data = ((PyArrayObject*)gmf_response)->data;
-    char * gmf_response_angles_data = ((PyArrayObject*)gmf_response_angles)->data;
-    npy_intp gmf_response_stride = ((PyArrayObject*)gmf_response)->strides[((PyArrayObject*)gmf_response)->nd-1];
-    npy_intp gmf_response_angles_stride = ((PyArrayObject*)gmf_response_angles)->strides[((PyArrayObject*)gmf_response_angles)->nd-1];
-    
-    if (n_imgs > 1)
-    {
-        DEBMSG("Multiscale Gaussian matched filtering over multiple images\n");
-        multiscaleGMFilterWithAngles_multipleinputs((double*)raw_input_data, n_imgs, mask_data, (double*)gmf_response_data, (double*)gmf_response_angles_data, height, width, par_T, par_L, (double*)par_sigma_data, par_sigma_scales, par_K, 0);
-    }
-    else
-    {
-        DEBMSG("Multiscale Gaussian matched filtering over a single image\n");
-        multiscaleGMFilterWithAngles((double*)raw_input_data, mask_data, (double*)gmf_response_data,(double*)gmf_response_angles_data, height, width, par_T, par_L, (double*)par_sigma_data, par_sigma_scales, par_K, 0);
-    }
-    
-    PyObject *gmf_response_tuple = PyTuple_New(2);
-    PyTuple_SetItem(gmf_response_tuple, 0, gmf_response);
-    PyTuple_SetItem(gmf_response_tuple, 1, gmf_response_angles);
-    return gmf_response_tuple;
+    return gmf_response;
 }
 #endif
 
 
 #ifdef BUILDING_PYTHON_MODULE
+static PyObject* gmfFilterBank(PyObject *self, PyObject *args)
+{
+    PyArrayObject *raw_input;
+    char *raw_input_data = NULL;
+    npy_intp raw_input_stride, n_imgs = 1;
+    npy_intp height, width;
+    
+    PyArrayObject *multiscale_par_sigma = NULL;
+    npy_intp par_sigma_stride, par_sigma = 1;
+    
+    unsigned int par_T;
+    unsigned int par_L;
+    unsigned int par_K;
+
+	unsigned char untrimmed_kernels = 0;
+
+	/** untrimmed kernel indicator and template src is an optional argument, wich is specified after '|' */
+	if (!PyArg_ParseTuple(args, "IIO!I|b", &par_T, &par_L, &PyArray_Type, &multiscale_par_sigma, &par_K, &untrimmed_kernels))
+    {
+        return NULL;
+    }
+    
+    double * par_sigma_data = (double*)((PyArrayObject*)multiscale_par_sigma)->data;
+    par_sigma = ((PyArrayObject*)multiscale_par_sigma)->dimensions[0];
+    par_sigma_stride = ((PyArrayObject*)multiscale_par_sigma)->strides[((PyArrayObject*)multiscale_par_sigma)->nd-1];
+    
+	/* Get the nearest 2-based dimension: */
+	const double max_dim = 300.0;
+	const double nearest_power = floor(log2(max_dim)) + 1.0;
+	const unsigned int nearest_2p_dim = (unsigned int)pow(2.0, nearest_power);
+
+	unsigned int kernel_height, kernel_width;
+	double * base_kernel = generateGMFTemplate(par_T, par_L, par_sigma, &kernel_height, &kernel_width, untrimmed_kernels);
+	double **filter_bank = generateFilterbank_space(base_kernel, par_K, nearest_2p_dim, kernel_height, kernel_width);
+	free(base_kernel);
+
+    npy_intp gmf_response_shape[] = {par_K, nearest_2p_dim, nearest_2p_dim};
+    PyArrayObject * gmf_response = PyArray_SimpleNew(3, &gmf_response_shape[0], NPY_DOUBLE);
+
+	base_kernel = (double*)malloc(nearest_2p_dim*nearest_2p_dim*sizeof(double));
+
+	for (unsigned int k = 0; k < par_K; k++)
+	{		
+		memcpy((double*)(gmf_response->data) + nearest_2p_dim*nearest_2p_dim*k, *(filter_bank+k), nearest_2p_dim*nearest_2p_dim*sizeof(double));
+		free(*(filter_bank + k));
+	}
+	free(filter_bank);
+
+    return (PyObject*)gmf_response;
+}
+#endif
+
+#ifdef BUILDING_PYTHON_MODULE
 static PyMethodDef gmf_methods[] = {
+	{ "gmfFilterBank", gmfFilterBank, METH_VARARGS, "Generate Gaussian matched filter bank." },
 	{ "gmfFilter", gmfFilter, METH_VARARGS, "applies the Gaussian matched filter to the input image, using the parameters T, L, sigma and K passed, if the parameter sigma is a list, then the multiscale Gaussian matched filter is applied instead." },
-	{ "gmfFilterWithAngles", gmfFilterWithAngles, METH_VARARGS, "applies the Gaussian matched filter to the input image, using the parameters T, L, sigma and K passed, if the parameter sigma is a list, then the multiscale Gaussian matched filter is applied instead, the angles of the max response are saved too." },
 	{ NULL, NULL, 0, NULL }
 };
 #endif

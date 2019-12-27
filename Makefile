@@ -1,5 +1,3 @@
-LIBVERSION:=1.0
-
 SRCDIR:=./include
 LIBDIR:=./lib
 ODIR:=./obj
@@ -13,14 +11,18 @@ SRCS:=$(wildcard $(SRCDIR)/*.c)
 HDRS:=$(wildcard $(SRCDIR)/*.h)
 OBJS:=$(patsubst $(SRCDIR)/%,$(ODIR)/%, $(patsubst %.c,%.o, $(SRCS)))
 
-LIBS:=libgmf.so.1
+REQUIRED_INCLUDES_PATH:=-I/home/fercer/Apps/gmffilter/include -I/usr/include
+REQUIRED_LIBS_PATH:=-L/usr/lib/x86_64-linux-gnu
+REQUIRED_LIBS_LINK:=-lfftw3
 
-make: $(OBJS) $(LIBDIR)
-	gcc -shared -L/usr/lib/x86_64-linux-gnu -lfftw3 -o $(LIBDIR)/$(LIBS).$(LIBVERSION) $(OBJS) -lc
+LIBPREFIX:=lib
+LIBNAME:=gmf
+LIBSUFFIX:=.so
+LIBVERSION:=.1.0
 
-.PHONY: $(OBJS)
-$(OBJS): $(ODIR)
-	gcc -c -fpic -Wl,-soname,$LIBS$ -I/usr/include/ $(SRCS) -o $(OBJS) -std=c99
+make: $(ODIR) $(LIBDIR)
+	gcc -c -fpic -Wl,-soname,$(LIBPREFIX)$(LIBNAME) -DNDEBUG $(REQUIRED_INCLUDES_PATH) $(SRCS) -o $(OBJS) -std=c99 -O2
+	gcc -shared $(REQUIRED_LIBS_PATH) -o $(LIBDIR)/$(LIBPREFIX)$(LIBNAME)$(LIBSUFFIX)$(LIBVERSION) $(OBJS) $(REQUIRED_LIBS_LINK)
 
 $(ODIR):
 	mkdir $(ODIR)
@@ -29,12 +31,22 @@ $(LIBDIR):
 	mkdir $(LIBDIR)
 
 install:
-	cp $(LIBDIR)/$(LIBS).$(LIBVERSION) /usr/local/lib
+	cp $(LIBDIR)/$(LIBPREFIX)$(LIBNAME)$(LIBSUFFIX)$(LIBVERSION) /usr/local/lib
+
+debug: $(ODIR) $(LIBDIR)
+	gcc -c -fpic -Wl,-soname,$(LIBPREFIX)$(LIBNAME) $(REQUIRED_INCLUDES_PATH) $(SRCS) -o $(OBJS) -std=c99 -g
+	gcc -shared $(REQUIRED_LIBS_PATH) -o $(LIBDIR)/$(LIBPREFIX)$(LIBNAME)$(LIBSUFFIX)$(LIBVERSION) $(OBJS) $(REQUIRED_LIBS_LINK)
+
+python: $(ODIR) $(LIBDIR)
+	gcc -c -fpic -Wl,-soname,$(LIBPREFIX)$(LIBNAME) -DNDEBUG -DBUILDING_PYTHON_MODULE $(REQUIRED_INCLUDES_PATH) -I/usr/include/python2.7 $(SRCS) -o $(OBJS) -std=c99 -O2
+	gcc -shared $(REQUIRED_LIBS_PATH) -o $(LIBDIR)/$(LIBNAME).pyd $(OBJS) $(REQUIRED_LIBS_LINK) -lpython2.7
 	
+install_python:
+	cp $(LIBDIR)/$(LIBNAME).pyd /home/fercer/anaconda2/envs/sigproc_env/lib/python2.7/site-packages
 	
 example_gmf: $(EXAMPLESODIR)/test_gmf.o $(EXAMPLESBINDIR)
 	gcc -L/usr/local/lib -L/usr/lib/x86_64-linux-gnu $(EXAMPLESODIR)/test_gmf.o -o $(EXAMPLESBINDIR)/test_gmf.bin -lgmf -lfftw3 -lm
-	
+
 .PHONY: $(EXAMPLESODIR)/test_gmf.o
 $(EXAMPLESODIR)/test_gmf.o: $(EXAMPLESODIR)
 	@echo "Compiling the examples into " $(EXAMPLESODIR)
