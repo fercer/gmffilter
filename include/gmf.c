@@ -644,8 +644,15 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     double * par_sigma_data = (double*)((PyArrayObject*)multiscale_par_sigma)->data;
     par_sigma = ((PyArrayObject*)multiscale_par_sigma)->dimensions[0];
     par_sigma_stride = ((PyArrayObject*)multiscale_par_sigma)->strides[((PyArrayObject*)multiscale_par_sigma)->nd-1];
-        
-    if (((PyArrayObject*)raw_input)->nd > 2)
+
+	if (((PyArrayObject*)raw_input)->nd > 3)
+	{
+        n_imgs = ((PyArrayObject*)raw_input)->dimensions[0];
+		/* Channels are ignored here */
+        height = ((PyArrayObject*)raw_input)->dimensions[2];
+        width = ((PyArrayObject*)raw_input)->dimensions[3];
+	}
+    else if (((PyArrayObject*)raw_input)->nd > 2)
     {
         n_imgs = ((PyArrayObject*)raw_input)->dimensions[0];
         height = ((PyArrayObject*)raw_input)->dimensions[1];
