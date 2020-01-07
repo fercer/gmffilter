@@ -11,7 +11,8 @@ setup(name='gmf',
       
       ext_modules=[Extension('gmf', ['include/gmf.c'],
                              define_macros=[('BUILDING_PYTHON_MODULE',''), ('NDEBUG',)],
-                             include_dirs=[np.get_include(), 'usr/local/include'],
-                             libraries=['fftw3', 'm'],
+                             include_dirs=[np.get_include(), 'usr/local/include', r'E:\Apps\fftw\include'],
+                             library_dirs=[r'E:\Apps\fftw\lib'],
+                             libraries=['fftw3'],
                              )],
       )

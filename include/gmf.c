@@ -25,25 +25,25 @@ void generateTemplate(double * template_filter, const unsigned int par_L, const 
 	double dog_template, step_upper, step_lower;
 	const double ctheta = cos(par_theta), stheta = sin(par_theta);
 	/* T in GMF is 6 * sigma, and the area (volume) under the filter curve is T * L */
-	const double alpha = 1.0 + 1.0/(6.0*par_sigma * par_L);
+	const double alpha = 1.0 + 1.0/(6.0*par_sigma*par_L);
 	y = -(double)nearest_2p_dim / 2.0;
+
 	for (unsigned int i = 0; i < nearest_2p_dim; i++, y+=1.0)
 	{
 		x = -(double)nearest_2p_dim / 2.0;
 		for (unsigned int j = 0; j < nearest_2p_dim; j++, x+=1.0)
 		{
 			u = x * ctheta - y * stheta;
-			v = y * stheta + x * ctheta;
+			v = y * ctheta + x * stheta;
 
 			step_upper = 1.0/(1.0 + exp(- v - (double)par_L/2.0));
 			step_lower = 1.0/(1.0 + exp(- v + (double)par_L/2.0));
 			dog_template = exp(-0.5*u*u/(par_sigma * par_sigma)) - alpha * exp(-0.5*alpha*alpha*u*u/(par_sigma*par_sigma));
 
-			*(template_filter + i * nearest_2p_dim + j) = step_upper * step_lower * dog_template;
+			*(template_filter + i * nearest_2p_dim + j) = (step_upper - step_lower) * dog_template;
 		}
 	}
 }
-
 
 
 
@@ -238,10 +238,6 @@ void multiscaleFilterAngles(double * raw_input, double * output, double * angles
 
 void applyFilter(ft_complex * fft_img_src, double* img_dst, const int nearest_2p_dim, const int height, const int width, const int par_K, ft_complex ** fft_filter_bank)
 {
-	/* Offset for the zero padded image */
-	const unsigned int offset_y = (nearest_2p_dim - height) / 2;
-	const unsigned int offset_x = (nearest_2p_dim - width) / 2;
-
 	ft_variables(nearest_2p_dim, nearest_2p_dim);
 
 	/* Arrays for filtering process */
@@ -317,7 +313,7 @@ void applyFilter(ft_complex * fft_img_src, double* img_dst, const int nearest_2p
 	{
 		for (unsigned int j = 0; j < width; j++)
 		{
-			*(img_dst + i*width + j) = *(max_resp + (i + offset_y)*nearest_2p_dim + j + offset_x);
+			*(img_dst + i*width + j) = *(max_resp + (i + (nearest_2p_dim-height)/2)*nearest_2p_dim + j + (nearest_2p_dim-width)/2);
 		}
 	}
 	
@@ -329,9 +325,6 @@ void applyFilter(ft_complex * fft_img_src, double* img_dst, const int nearest_2p
 void applyTemplates(ft_complex * fft_img_src, double* img_dst, const int nearest_2p_dim, const int height, const int width, const int par_K, ft_complex ** fft_filter_bank)
 {
 	/* Offset for the zero padded image */
-	const unsigned int offset_y = (nearest_2p_dim - height) / 2;
-	const unsigned int offset_x = (nearest_2p_dim - width) / 2;
-
 	ft_variables(nearest_2p_dim, nearest_2p_dim);
 
 	/* Arrays for filtering process */
@@ -360,10 +353,9 @@ void applyTemplates(ft_complex * fft_img_src, double* img_dst, const int nearest
 		{
 			for (unsigned int j = 0; j < width; j++)
 			{
-				*(img_dst + k*width*height + i*width + j) = *(resp_to_GMF_kernels_data + (i + offset_y)*nearest_2p_dim + j + offset_x);
+				*(img_dst + k*height*width + i*width + j) = *(resp_to_GMF_kernels_data + (i + (nearest_2p_dim-height)/2)*nearest_2p_dim + j + (nearest_2p_dim-width)/2)  / (double)(nearest_2p_dim*nearest_2p_dim);
 			}
 		}
-		
 	}
 	deallocate_ft_complex(fft_convolution_GMF_kernel);
 	
@@ -388,15 +380,20 @@ void multiscaleFilter(double * raw_input, double * output, const unsigned int n_
 	{
 		for (unsigned int y = 0; y < height/2; y++)
 		{
-			memcpy(zp_img + (y+nearest_2p_dim/2 + height/2)*nearest_2p_dim + nearest_2p_dim/2 + width/2, raw_input + i*height*width + y*width, width / 2 * sizeof(double));
-			memcpy(zp_img + (y+nearest_2p_dim/2 + height/2)*nearest_2p_dim, raw_input + i*height*width + y*width + width/2, width / 2 * sizeof(double));
+			memcpy(zp_img + (y + nearest_2p_dim - height/2)*nearest_2p_dim + nearest_2p_dim - width/2, raw_input + i*height*width + y*width, width/2 * sizeof(double));
+			memcpy(zp_img + (y + nearest_2p_dim - height/2)*nearest_2p_dim, raw_input + i*height*width + y*width + width/2, width/2 * sizeof(double));
 		}
 
 		for (unsigned int y = height/2; y < height; y++)
 		{
-			memcpy(zp_img + y*nearest_2p_dim + nearest_2p_dim/2 + width/2, raw_input + i*height*width + y*width, width / 2 * sizeof(double));
-			memcpy(zp_img + y*nearest_2p_dim, raw_input + i*height*width + y*width + width/2, width / 2 * sizeof(double));
+			memcpy(zp_img + (y - height/2)*nearest_2p_dim + nearest_2p_dim - width/2, raw_input + i*height*width + y*width, width/2 * sizeof(double));
+			memcpy(zp_img + (y - height/2)*nearest_2p_dim, raw_input + i*height*width + y*width + width/2, width/2 * sizeof(double));
 		}
+
+		FILE * fp_img = fopen("test.bin","wb");
+		fwrite(zp_img, sizeof(double), nearest_2p_dim*nearest_2p_dim,fp_img);
+		fclose(fp_img);
+
 		/* Perform the Fourier Transform: */
 		*(fft_img_src + i) = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2 + 1));
 
@@ -412,13 +409,12 @@ void multiscaleFilter(double * raw_input, double * output, const unsigned int n_
 	for (unsigned int s = 0; s < sigma_scales; s++)
 	{
 		fft_filter_bank = generateFilterbank(par_L, *(par_sigma + s), par_K, nearest_2p_dim);
-
 		if (compute_max)
 		{
 			for (unsigned int i = 0; i < n_imgs; i++)
 			{
 				// Apply the single-scale filter to get the max response:
-				applyFilter(*(fft_img_src + i), output + i*sigma_scales*par_K*width*height + s*par_K*height*width, nearest_2p_dim, height, width, par_K, fft_filter_bank);
+				applyFilter(*(fft_img_src + i), output + i*sigma_scales*width*height + s*height*width, nearest_2p_dim, height, width, par_K, fft_filter_bank);
 			}
 		}
 		else
@@ -429,8 +425,8 @@ void multiscaleFilter(double * raw_input, double * output, const unsigned int n_
 				applyTemplates(*(fft_img_src + i), output + i*sigma_scales*par_K*width*height + s*par_K*height*width, nearest_2p_dim, height, width, par_K, fft_filter_bank);
 			}
 		}
-		
 
+		printf("[Copied template into image output]\n");
 		// Free all memory used for image filtering:
 		for (unsigned int k = 0; k < par_K; k++)
 		{
@@ -451,7 +447,6 @@ void multiscaleFilter(double * raw_input, double * output, const unsigned int n_
 
 
 #ifdef BUILDING_PYTHON_MODULE
-//static PyObject* gmfFilter(PyObject *self, PyObject *args, PyObject *kwargs)
 static PyObject* gmfFilter(PyObject *self, PyObject *args)
 {
     PyArrayObject *raw_input;
@@ -499,10 +494,11 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     raw_input_data  = (double*)((PyArrayObject*)raw_input)->data;
     raw_input_stride = ((PyArrayObject*)raw_input)->strides[((PyArrayObject*)raw_input)->nd - 1];
     
-    npy_intp gmf_response_shape[] = { n_imgs, sigma_scales * (compute_max ? par_K : 1), height, width };
+    npy_intp gmf_response_shape[] = { n_imgs, sigma_scales * (compute_max ? 1 : par_K), height, width };
     PyObject * gmf_response = PyArray_SimpleNew(4, &gmf_response_shape[0], NPY_DOUBLE);
     
     double * gmf_response_data = (double*)((PyArrayObject*)gmf_response)->data;
+	printf("[Filtering image of shape: {%i, %i, %i} with maximum: %i --> %f]\n", n_imgs, height, width, sigma_scales * (compute_max ? par_K : 1), *gmf_response_data);
 	multiscaleFilter(raw_input_data, gmf_response_data, n_imgs, height, width, par_L, par_sigma_data, sigma_scales, par_K, compute_max);
 	
     return gmf_response;
