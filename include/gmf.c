@@ -60,7 +60,7 @@ ft_complex ** generateFilterbank(const unsigned int par_L, const double par_sigm
 	for (unsigned int k = 0; k < par_K; k++)
 	{
 		*(fft_filter_bank + k) = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim/2 + 1));
-		generateTemplate(template_filter, par_L, par_sigma, (double)k/180.0 * MY_PI, nearest_2p_dim);
+		generateTemplate(template_filter, par_L, par_sigma, (double)k/(double)par_K * MY_PI, nearest_2p_dim);
 
 		ft_forward_setup(nearest_2p_dim, nearest_2p_dim, template_filter, *(fft_filter_bank + k));
 		ft_forward(nearest_2p_dim, nearest_2p_dim, template_filter, *(fft_filter_bank + k));
