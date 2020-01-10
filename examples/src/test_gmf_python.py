@@ -12,7 +12,7 @@ import time
 
 print('Testing GMF filter')
 
-filename = os.path.join(r'E:/test_data/Angios_134', '17.png')    
+filename = os.path.join(r'E:/test_data/Angios_134', '1.png')    
 print(filename)
 
 img = np.zeros([512, 512])
@@ -21,7 +21,7 @@ img[106:-106,106:-106] = cv2.imread(filename, 0) / 255.0
 mask = fov.compute_FOV_mask(img)
 img = fov.fill_blackarea(img, mask)
 
-filename = os.path.join(r'E:/test_data/Angios_134', '17_gt.png')
+filename = os.path.join(r'E:/test_data/Angios_134', '1_gt.png')
 img_gt = cv2.imread(filename, 0)
 img_gt = img_gt / np.max(img_gt)
 
