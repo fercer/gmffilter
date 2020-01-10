@@ -113,9 +113,6 @@ None
 void GMF_DLL_LOCAL generateTemplategenerateTemplate(double * template_filter, const unsigned int par_L, const double par_sigma, const double par_theta, unsigned int nearest_2p_dim);
 ft_complex ** GMF_DLL_LOCAL generateFilterbank(const unsigned int par_L, const double par_sigma, const int par_K, const int nearest_2p_dim);
 
-void GMF_DLL_LOCAL applyFilterAngles(ft_complex * fft_img_src, double* img_dst, double* ang_dst, const int nearest_2p_dim, const int height, const int width, const unsigned int sigma_scales, const int par_K, ft_complex ** fft_filter_bank);
-void GMF_DLL_LOCAL multiscaleFilterAngles(double * raw_input, double * output, double * angles, const unsigned int n_inputs, const unsigned int height, const unsigned width, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K);
-
 void GMF_DLL_LOCAL applyFilter(ft_complex * fft_img_src, double* img_dst, const int nearest_2p_dim, const int height, const int width, const int par_K, ft_complex ** fft_filter_bank);
 void GMF_DLL_LOCAL applyTemplates(ft_complex * fft_img_src, double* img_dst, const int nearest_2p_dim, const int height, const int width, const int par_K, ft_complex ** fft_filter_bank);
 void GMF_DLL_LOCAL multiscaleFilter(double * raw_input, double * output, const unsigned int n_inputs, const unsigned int height, const unsigned width, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char compute_max);
