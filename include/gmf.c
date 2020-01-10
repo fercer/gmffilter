@@ -426,7 +426,6 @@ void multiscaleFilter(double * raw_input, double * output, const unsigned int n_
 			}
 		}
 
-		printf("[Copied template into image output]\n");
 		// Free all memory used for image filtering:
 		for (unsigned int k = 0; k < par_K; k++)
 		{
@@ -498,7 +497,7 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     PyObject * gmf_response = PyArray_SimpleNew(4, &gmf_response_shape[0], NPY_DOUBLE);
     
     double * gmf_response_data = (double*)((PyArrayObject*)gmf_response)->data;
-	printf("[Filtering image of shape: {%i, %i, %i} with maximum: %i --> %f]\n", n_imgs, height, width, sigma_scales * (compute_max ? par_K : 1), *gmf_response_data);
+	printf("[Filtering image of shape: {%i, %i, %i} with maximum: %i --> %f]\n", n_imgs, height, width, sigma_scales * (compute_max ? 1 : par_K), *gmf_response_data);
 	multiscaleFilter(raw_input_data, gmf_response_data, n_imgs, height, width, par_L, par_sigma_data, sigma_scales, par_K, compute_max);
 	
     return gmf_response;
