@@ -2,6 +2,7 @@
 
 import numpy as np
 from distutils.core import setup, Extension
+import os
 
 setup(name='gmf',
       version='1.0',
@@ -11,7 +12,8 @@ setup(name='gmf',
       
       ext_modules=[Extension('gmf', ['include/gmf.c'],
                              define_macros=[('BUILDING_PYTHON_MODULE',''), ('NDEBUG',)],
-                             include_dirs=[np.get_include(), 'usr/local/include'],
-                             libraries=['fftw3', 'm'],
+                             library_dirs=[os.environ['FFTW_LIBS_PATH']],
+                             include_dirs=[np.get_include(), os.environ['FFTW_INCLUDE_PATH']],
+                             libraries=['fftw3'],
                              )],
       )
