@@ -11,7 +11,7 @@ import sys
 import time
 
 print('Testing GMF filter')
-
+"""
 filename = os.path.join(r'E:/test_data/Angios_134', '1.png')    
 print(filename)
 
@@ -82,8 +82,9 @@ for k, test_theta in enumerate(np.linspace(0.0, np.pi - np.pi/12.0, 12)):
 
 resp_dog = np.max(resp_dog, axis=0)[106:-106,106:-106]
 resp_gmf = np.max(resp_gmf, axis=0)[106:-106,106:-106]
-resp_gmf_o = gmf.gmfFilter(img, int(test_T), test_L, np.array([test_sigma]), 12, 0)[0,0][106:-106,106:-106]
+resp_gmf_o = gmf.gmfFilter(img, int(test_T), test_L, np.array([test_sigma]), 12, 0, 0)[0,0][106:-106,106:-106]
 
+print('Output shape:', resp_gmf_o.shape)
 print('Diff:', np.sqrt(np.sum((resp_gmf - resp_dog)**2)))
 
 plt.subplot(1, 4, 1)
@@ -91,7 +92,7 @@ plt.imshow(resp_dog)
 plt.subplot(1, 4, 2)
 plt.imshow(resp_gmf)
 plt.subplot(1, 4, 3)
-plt.imshow(resp_gmf_o)
+plt.imshow(resp_gmf_o[0])
 plt.subplot(1, 4, 4)
 plt.imshow(img_gt)
 plt.show()
@@ -100,15 +101,46 @@ Az_dog = roc.aucROC(resp_dog, img_gt)
 Az_gmf = roc.aucROC(resp_gmf, img_gt)
 Az_gmf_o = roc.aucROC(resp_gmf_o, img_gt)
 print('DOG roc auc: {}, GMF roc auc: {}, Org roc auc: {}'.format(Az_dog, Az_gmf, Az_gmf_o))
-
 """
+
+filename = os.path.join(r'E:/test_data/Angios_134', '1.png')    
+img = cv2.imread(filename, 0) / 255.0
+
 start_time = time.time()
-gmf_resp = gmf.gmfFilter(img_cat, 9, np.array([2.0]), 12, 1)
+gmf_resp = gmf.gmfFilter(img, 13, 9, np.array([2.0]), 12, 0, 0)
 elapsed_time = time.time() - start_time
 
 print(gmf_resp.shape, gmf_resp.max())
 print('Computed in ', elapsed_time, ' seconds', gmf_resp.shape, np.max(gmf_resp), np.min(gmf_resp))
-"""
+plt.subplot(2, 6, 1)
+plt.imshow(gmf_resp[0,0,0])
+plt.subplot(2, 6, 2)
+plt.imshow(gmf_resp[0,0,1])
+plt.subplot(2, 6, 3)
+plt.imshow(gmf_resp[0,0,2])
+plt.subplot(2, 6, 4)
+plt.imshow(gmf_resp[0,0,3])
+plt.subplot(2, 6, 5)
+plt.imshow(gmf_resp[0,0,4])
+plt.subplot(2, 6, 6)
+plt.imshow(gmf_resp[0,0,5])
+plt.subplot(2, 6, 7)
+plt.imshow(gmf_resp[0,0,6])
+plt.subplot(2, 6, 8)
+plt.imshow(gmf_resp[0,0,7])
+plt.subplot(2, 6, 9)
+plt.imshow(gmf_resp[0,0,8])
+plt.subplot(2, 6, 10)
+plt.imshow(gmf_resp[0,0,9])
+plt.subplot(2, 6, 11)
+plt.imshow(gmf_resp[0,0,10])
+plt.subplot(2, 6, 12)
+plt.imshow(gmf_resp[0,0,11])
+plt.show()
+
+plt.imshow(gmf_resp.max(axis=2)[0,0])
+plt.show()
+
 """
 gmf_centered = 1.0 - (gmf_resp[:,0,:,:] - np.min(gmf_resp)) / (np.max(gmf_resp) - np.min(gmf_resp))
 

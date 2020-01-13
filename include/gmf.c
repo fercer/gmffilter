@@ -454,7 +454,7 @@ void multiscaleFilterAngles(double * raw_input, double * output, double * angles
 
 
 
-void applyFilter(ft_complex * fft_img_src, double* img_dst, const int nearest_2p_dim, const int height, const int width, const int kernel_height, const int kernel_width, const int par_K, ft_complex ** fft_filter_bank)
+void applyFilterMax(ft_complex * fft_img_src, double* img_dst, const int nearest_2p_dim, const int height, const int width, const int kernel_height, const int kernel_width, const int par_K, ft_complex ** fft_filter_bank)
 {
 	/* Offset for the zero padded image */
 	const unsigned int offset_y = kernel_height / 2;
@@ -543,7 +543,93 @@ void applyFilter(ft_complex * fft_img_src, double* img_dst, const int nearest_2p
 }
 
 
-void multiscaleFilter(double * raw_input, double * output, const unsigned int n_inputs, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels, double ** template_src)
+
+void applyFilter(ft_complex * fft_img_src, double* img_dst, const int nearest_2p_dim, const int height, const int width, const int kernel_height, const int kernel_width, const int par_K, ft_complex ** fft_filter_bank)
+{
+	/* Offset for the zero padded image */
+	const unsigned int offset_y = kernel_height / 2;
+	const unsigned int offset_x = kernel_width / 2;
+
+	ft_variables(nearest_2p_dim, nearest_2p_dim);
+
+	/* Arrays for filtering process */
+	double * resp_to_GMF_kernels_data = (double*)malloc(nearest_2p_dim * nearest_2p_dim * par_K * sizeof(double));
+	ft_complex * fft_convolution_GMF_kernel = allocate_ft_complex(nearest_2p_dim * (nearest_2p_dim / 2 + 1));
+
+	/* First Kernel: */
+	for (unsigned int i = 0; i < nearest_2p_dim*(nearest_2p_dim / 2 + 1); i++)
+	{
+		const double real_result = ft_real(*(fft_filter_bank)+i) * ft_real(fft_img_src + i) -
+			ft_imag(*(fft_filter_bank)+i) * ft_imag(fft_img_src + i);
+		const double imag_result = ft_real(*(fft_filter_bank)+i) * ft_imag(fft_img_src + i) +
+			ft_real(fft_img_src + i) * ft_imag(*(fft_filter_bank)+i);
+
+		ft_real_assign(fft_convolution_GMF_kernel + i) = real_result;
+		ft_imag_assign(fft_convolution_GMF_kernel + i) = imag_result;
+	}
+
+	ft_backward_setup(nearest_2p_dim, nearest_2p_dim, fft_convolution_GMF_kernel, resp_to_GMF_kernels_data);
+	ft_backward(nearest_2p_dim, nearest_2p_dim, fft_convolution_GMF_kernel, resp_to_GMF_kernels_data);
+	ft_release_backward;
+	
+	for (unsigned int k = 1; k < par_K; k++)
+	{
+		for (unsigned int i = 0; i < height; i++)
+		{
+			for (unsigned int j = 0; j < (nearest_2p_dim / 2 + 1); j++)
+			{
+				const double real_result = ft_real(*(fft_filter_bank + k) + i*(nearest_2p_dim/2 + 1) + j) * ft_real(fft_img_src + i*(nearest_2p_dim/2 + 1) + j) -
+					ft_imag(*(fft_filter_bank + k) + i*(nearest_2p_dim/2 + 1) + j) * ft_imag(fft_img_src + i*(nearest_2p_dim/2 + 1) + j);
+
+				const double imag_result = ft_real(*(fft_filter_bank + k) + i*(nearest_2p_dim/2 + 1) + j) * ft_imag(fft_img_src + i*(nearest_2p_dim/2 + 1) + j) + 
+					ft_real(fft_img_src + i*(nearest_2p_dim/2 + 1) + j) * ft_imag(*(fft_filter_bank + k) + i*(nearest_2p_dim/2 + 1) + j);
+
+				ft_real_assign(fft_convolution_GMF_kernel + i*(nearest_2p_dim/2 + 1) + j) = real_result;
+				ft_imag_assign(fft_convolution_GMF_kernel + i*(nearest_2p_dim/2 + 1) + j) = imag_result;
+
+				*(img_dst + (k-1)*width*height + i*width + j) = *(resp_to_GMF_kernels_data + (i+offset_y)*nearest_2p_dim + j + offset_x);
+				*(img_dst + (k-1)*width*height + i*width + width - nearest_2p_dim / 2 + j) = *(resp_to_GMF_kernels_data + (i+offset_y)*nearest_2p_dim + width - nearest_2p_dim / 2 + j + offset_x);
+			}
+		}
+
+		for (unsigned int i = height; i < nearest_2p_dim; i++)
+		{
+			for (unsigned int j = 0; j < (nearest_2p_dim / 2 + 1); j++)
+			{
+				const double real_result = ft_real(*(fft_filter_bank + k) + i*(nearest_2p_dim/2 + 1) + j) * ft_real(fft_img_src + i*(nearest_2p_dim/2 + 1) + j) -
+					ft_imag(*(fft_filter_bank + k) + i*(nearest_2p_dim/2 + 1) + j) * ft_imag(fft_img_src + i*(nearest_2p_dim/2 + 1) + j);
+
+				const double imag_result = ft_real(*(fft_filter_bank + k) + i*(nearest_2p_dim/2 + 1) + j) * ft_imag(fft_img_src + i*(nearest_2p_dim/2 + 1) + j) + 
+					ft_real(fft_img_src + i*(nearest_2p_dim/2 + 1) + j) * ft_imag(*(fft_filter_bank + k) + i*(nearest_2p_dim/2 + 1) + j);
+
+				ft_real_assign(fft_convolution_GMF_kernel + i*(nearest_2p_dim/2 + 1) + j) = real_result;
+				ft_imag_assign(fft_convolution_GMF_kernel + i*(nearest_2p_dim/2 + 1) + j) = imag_result;
+			}
+		}
+
+		ft_backward_setup(nearest_2p_dim, nearest_2p_dim, fft_convolution_GMF_kernel, resp_to_GMF_kernels_data);
+		ft_backward(nearest_2p_dim, nearest_2p_dim, fft_convolution_GMF_kernel, resp_to_GMF_kernels_data);
+		ft_release_backward;
+		
+	}
+
+	deallocate_ft_complex(fft_convolution_GMF_kernel);
+	
+	for (unsigned int i = 0; i < height; i++)
+	{
+		for (unsigned int j = 0; j < width; j++)
+		{
+			*(img_dst + (par_K-1)*width*height + i*width + j) = *(resp_to_GMF_kernels_data + (i+offset_y)*nearest_2p_dim + j + offset_x);
+		}
+	}
+
+	free(resp_to_GMF_kernels_data);
+	ft_close;
+}
+
+
+
+void multiscaleFilter(double * raw_input, double * output, const unsigned int n_inputs, const unsigned int height, const unsigned width, const unsigned int par_T, const unsigned int par_L, double * par_sigma, const unsigned int sigma_scales, const unsigned int par_K, const unsigned char untrimmed_kernels, const unsigned char compute_max, double ** template_src)
 {
 	/* Get the nearest 2-based dimension: */
 	const double max_dim = (height > width) ? (double)height : (double)width;
@@ -591,10 +677,21 @@ void multiscaleFilter(double * raw_input, double * output, const unsigned int n_
 			free(base_kernel);
 		}
 
-		for (unsigned int i = 0; i < n_inputs; i++)
+		if (compute_max)
 		{
-			// Apply the single-scale filter:
-			applyFilter(*(fft_img_src + i), output + i*sigma_scales*width*height + s*height*width, nearest_2p_dim, height, width, kernel_height, kernel_width, par_K, fft_filter_bank);
+			for (unsigned int i = 0; i < n_inputs; i++)
+			{
+				// Apply the single-scale filter:
+				applyFilterMax(*(fft_img_src + i), output + i*sigma_scales*width*height + s*height*width, nearest_2p_dim, height, width, kernel_height, kernel_width, par_K, fft_filter_bank);
+			}
+		}
+		else
+		{
+			for (unsigned int i = 0; i < n_inputs; i++)
+			{
+				// Apply the single-scale filter:
+				applyFilter(*(fft_img_src + i), output + i*sigma_scales*par_K*width*height + s*par_K*height*width, nearest_2p_dim, height, width, kernel_height, kernel_width, par_K, fft_filter_bank);
+			}
 		}
 
 		// Free all memory used for image filtering:
@@ -617,7 +714,6 @@ void multiscaleFilter(double * raw_input, double * output, const unsigned int n_
 
 
 #ifdef BUILDING_PYTHON_MODULE
-//static PyObject* gmfFilter(PyObject *self, PyObject *args, PyObject *kwargs)
 static PyObject* gmfFilter(PyObject *self, PyObject *args)
 {
     PyArrayObject *raw_input;
@@ -633,10 +729,12 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     unsigned int par_K;
    
 	unsigned char untrimmed_kernels = 0;
+	unsigned char compute_max = 1;
+
     PyArrayObject *template_src = NULL;
 
 	/** untrimmed kernel indicator and template src is an optional argument, wich is specified after '|' */
-    if (!PyArg_ParseTuple(args, "O!IIO!I|bO!", &PyArray_Type, &raw_input, &par_T, &par_L, &PyArray_Type, &multiscale_par_sigma, &par_K, &untrimmed_kernels, &PyArray_Type, &template_src))
+    if (!PyArg_ParseTuple(args, "O!IIO!I|bbO!", &PyArray_Type, &raw_input, &par_T, &par_L, &PyArray_Type, &multiscale_par_sigma, &par_K, &untrimmed_kernels, &compute_max, &PyArray_Type, &template_src))
     {
         return NULL;
     }
@@ -645,7 +743,14 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     par_sigma = ((PyArrayObject*)multiscale_par_sigma)->dimensions[0];
     par_sigma_stride = ((PyArrayObject*)multiscale_par_sigma)->strides[((PyArrayObject*)multiscale_par_sigma)->nd-1];
         
-    if (((PyArrayObject*)raw_input)->nd > 2)
+    if (((PyArrayObject*)raw_input)->nd > 3)
+    {
+        n_imgs = ((PyArrayObject*)raw_input)->dimensions[0];
+		/* Ignore channels */
+        height = ((PyArrayObject*)raw_input)->dimensions[2];
+        width = ((PyArrayObject*)raw_input)->dimensions[3];
+    }
+    else if (((PyArrayObject*)raw_input)->nd > 2)
     {
         n_imgs = ((PyArrayObject*)raw_input)->dimensions[0];
         height = ((PyArrayObject*)raw_input)->dimensions[1];
@@ -660,18 +765,28 @@ static PyObject* gmfFilter(PyObject *self, PyObject *args)
     
     raw_input_data  = (double*)((PyArrayObject*)raw_input)->data;
     raw_input_stride = ((PyArrayObject*)raw_input)->strides[((PyArrayObject*)raw_input)->nd - 1];
-    
-    npy_intp gmf_response_shape[] = { n_imgs, par_sigma, height, width };      
-    PyObject * gmf_response = PyArray_SimpleNew(4, &gmf_response_shape[0], NPY_DOUBLE);
+
+	PyObject * gmf_response = NULL;
+	if (compute_max)
+	{
+    	npy_intp gmf_max_response_shape[] = { n_imgs, par_sigma, height, width };
+		gmf_response = (PyObject*)PyArray_SimpleNew(4, &gmf_max_response_shape[0], NPY_DOUBLE);
+	}
+	else
+	{
+    	npy_intp gmf_response_shape[] = { n_imgs, par_sigma, par_K, height, width };
+		printf("[Computing filetring without max pooling: {%i, %i, %i, %i, %i}]\n", n_imgs, par_sigma, par_K, height, width);
+		gmf_response = (PyObject*)PyArray_SimpleNew(5, &gmf_response_shape[0], NPY_DOUBLE);
+	}
     
     double * gmf_response_data = (double*)((PyArrayObject*)gmf_response)->data;
 	if (template_src)
 	{
-    	multiscaleFilter(raw_input_data, gmf_response_data, n_imgs, height, width, par_T, par_L, par_sigma_data, par_sigma, par_K, untrimmed_kernels, (double*)template_src->data);
+    	multiscaleFilter(raw_input_data, gmf_response_data, n_imgs, height, width, par_T, par_L, par_sigma_data, par_sigma, par_K, untrimmed_kernels, compute_max, (double*)template_src->data);
 	}
 	else
 	{
-    	multiscaleFilter(raw_input_data, gmf_response_data, n_imgs, height, width, par_T, par_L, par_sigma_data, par_sigma, par_K, untrimmed_kernels, NULL);
+    	multiscaleFilter(raw_input_data, gmf_response_data, n_imgs, height, width, par_T, par_L, par_sigma_data, par_sigma, par_K, untrimmed_kernels, compute_max, NULL);
 	}
     
     return gmf_response;
